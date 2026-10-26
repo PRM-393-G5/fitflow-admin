@@ -1,12 +1,7 @@
 import { LockOutlined, MailOutlined } from '@ant-design/icons';
 import { Alert, Button, Card, Form, Input, Typography } from 'antd';
 import { useState } from 'react';
-import {
-  Navigate,
-  useLocation,
-  useNavigate,
-  type Location,
-} from 'react-router';
+import { Navigate, useLocation, type Location } from 'react-router';
 import { useAuth } from '../auth/useAuth';
 import { loginErrorMessage } from './loginErrorMessage';
 
@@ -17,12 +12,13 @@ interface Credentials {
 
 export function LoginPage() {
   const { session, login } = useAuth();
-  const navigate = useNavigate();
   const location = useLocation();
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const from =
-    (location.state as { from?: Location } | null)?.from?.pathname ?? '/';
+  const fromLocation = (location.state as { from?: Location } | null)?.from;
+  const from = fromLocation
+    ? `${fromLocation.pathname}${fromLocation.search}${fromLocation.hash}`
+    : '/';
 
   if (session) return <Navigate to={from} replace />;
 
@@ -30,8 +26,8 @@ export function LoginPage() {
     setSubmitting(true);
     setError(null);
     try {
+      // Signed in: this page re-renders into <Navigate to={from} />.
       await login(email, password);
-      navigate(from, { replace: true });
     } catch (caught) {
       setError(loginErrorMessage(caught));
     } finally {

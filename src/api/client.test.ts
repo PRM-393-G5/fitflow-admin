@@ -52,11 +52,19 @@ describe('createApiClient', () => {
       json(400, { message: ['name is empty', 'id bad'] }),
     );
     await expect(many.api.get('x')).rejects.toMatchObject({
-      message: 'name is empty\nid bad',
+      message: 'name is empty; id bad',
     });
     const plain = client(() => new Response('oops', { status: 502 }));
     await expect(plain.api.get('x')).rejects.toMatchObject({
       message: 'Request failed (502)',
+    });
+  });
+
+  it('turns a 2xx body that is not JSON into an ApiError', async () => {
+    const { api } = client(() => new Response('<html>', { status: 200 }));
+    await expect(api.get('x')).rejects.toMatchObject({
+      status: 200,
+      message: 'Unexpected response from the API',
     });
   });
 
@@ -72,7 +80,7 @@ describe('createApiClient', () => {
   it('ends the session only when a sent token is rejected', async () => {
     const signedIn = client(() => json(401, { message: 'expired' }));
     await expect(signedIn.api.get('x')).rejects.toBeInstanceOf(ApiError);
-    expect(signedIn.onUnauthorized).toHaveBeenCalledOnce();
+    expect(signedIn.onUnauthorized).toHaveBeenCalledExactlyOnceWith('token-1');
 
     const login = client(() => json(401, { message: 'wrong' }), null);
     await expect(login.api.post('admin/auth/login', {})).rejects.toThrow();

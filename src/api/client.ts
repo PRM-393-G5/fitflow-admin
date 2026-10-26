@@ -14,8 +14,11 @@ export interface ApiClientOptions {
   baseUrl: string;
   /** The admin access token to send, if signed in. */
   getToken: () => string | null;
-  /** Called when the API rejects the token (expired, or admin removed). */
-  onUnauthorized: () => void;
+  /**
+   * Called with the token the API rejected (expired, or admin removed);
+   * it may no longer be the current one if the session changed meanwhile.
+   */
+  onUnauthorized: (rejectedToken: string) => void;
   fetch?: typeof fetch;
 }
 
@@ -48,12 +51,16 @@ export function createApiClient(options: ApiClientOptions) {
       throw new ApiError(0, 'Cannot reach the FitFlow API');
     }
     // Only a rejected token ends the session; a failed login is just a 401.
-    if (response.status === 401 && token) options.onUnauthorized();
+    if (response.status === 401 && token) options.onUnauthorized(token);
     if (!response.ok) {
       throw new ApiError(response.status, await errorMessage(response));
     }
     if (response.status === 204) return undefined as T;
-    return (await response.json()) as T;
+    try {
+      return (await response.json()) as T;
+    } catch {
+      throw new ApiError(response.status, 'Unexpected response from the API');
+    }
   }
 
   return {
@@ -71,7 +78,7 @@ export type ApiClient = ReturnType<typeof createApiClient>;
 async function errorMessage(response: Response): Promise<string> {
   try {
     const body = (await response.json()) as { message?: unknown };
-    if (Array.isArray(body.message)) return body.message.join('\n');
+    if (Array.isArray(body.message)) return body.message.join('; ');
     if (typeof body.message === 'string' && body.message) return body.message;
   } catch {
     // Not JSON: fall through.
