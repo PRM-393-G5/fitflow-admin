@@ -35,9 +35,11 @@ describe('createApiClient', () => {
     });
   });
 
-  it('returns undefined for 204', async () => {
+  it('returns undefined for an empty body', async () => {
     const { api } = client(() => new Response(null, { status: 204 }));
     await expect(api.delete('admin/things/1')).resolves.toBeUndefined();
+    const empty200 = client(() => new Response('', { status: 200 }));
+    await expect(empty200.api.post('x')).resolves.toBeUndefined();
   });
 
   it('carries the API message, joining validation lists', async () => {

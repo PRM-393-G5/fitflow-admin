@@ -37,15 +37,21 @@ export function AuthProvider({
   const [store] = useState(() => createSessionStore(loadSession()));
   const session = useSyncExternalStore(store.subscribe, store.get);
 
-  const endSession = useCallback(
-    (token?: string) => {
-      if (!store.get()) return;
-      store.end(token);
-      if (!store.get()) queryClient.clear();
-    },
-    [store, queryClient],
-  );
+  const endSession = useCallback((token?: string) => store.end(token), [store]);
   const logout = useCallback(() => endSession(), [endSession]);
+
+  // Cached data belongs to one session: drop it whenever the token
+  // changes, whether here (sign-in, sign-out, expiry, rejected token) or
+  // in another tab.
+  useEffect(() => {
+    let token = store.get()?.accessToken;
+    return store.subscribe(() => {
+      const next = store.get()?.accessToken;
+      if (next === token) return;
+      token = next;
+      queryClient.clear();
+    });
+  }, [store, queryClient]);
 
   const api = useMemo(
     () =>
@@ -75,7 +81,7 @@ export function AuthProvider({
     // Long waits are split: setTimeout overflows past MAX_TIMEOUT_MS.
     const check = () => {
       const left = session.expiresAt - Date.now();
-      if (left <= 0) endSession(session.accessToken);
+      if (!(left > 0)) endSession(session.accessToken);
       else timer = setTimeout(check, Math.min(left, MAX_TIMEOUT_MS));
     };
     check();

@@ -16,6 +16,18 @@ describe('session storage', () => {
     ).toEqual({ accessToken: 't', expiresAt: 61_000, admin });
   });
 
+  it('refuses a login result without a usable lifetime', () => {
+    for (const expiresIn of [Number.NaN, 0, undefined]) {
+      expect(() =>
+        sessionFromLogin({
+          accessToken: 't',
+          expiresIn: expiresIn as unknown as number,
+          admin,
+        }),
+      ).toThrow('no token lifetime');
+    }
+  });
+
   it('round-trips a live session', () => {
     const session: Session = { accessToken: 't', expiresAt: 5_000, admin };
     saveSession(session);

@@ -23,6 +23,9 @@ export interface LoginResult {
 const KEY = 'fitflow-admin.session';
 
 export function sessionFromLogin(result: LoginResult, now = Date.now()) {
+  if (!(Number.isFinite(result.expiresIn) && result.expiresIn > 0)) {
+    throw new Error('The API returned no token lifetime');
+  }
   return {
     accessToken: result.accessToken,
     expiresAt: now + result.expiresIn * 1000,
@@ -38,8 +41,8 @@ export function loadSession(now = Date.now()): Session | null {
     const session = JSON.parse(raw) as Partial<Session>;
     if (
       typeof session.accessToken === 'string' &&
-      typeof session.expiresAt === 'number' &&
-      session.expiresAt > now &&
+      Number.isFinite(session.expiresAt) &&
+      session.expiresAt! > now &&
       typeof session.admin?.email === 'string'
     ) {
       return session as Session;
@@ -58,6 +61,9 @@ export function saveSession(session: Session) {
 export function clearSession() {
   localStorage.removeItem(KEY);
 }
+
+/** How the admin is shown: their name, else their email. */
+export const displayName = (admin: AdminProfile) => admin.name || admin.email;
 
 export interface SessionStore {
   get: () => Session | null;

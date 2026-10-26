@@ -3,6 +3,7 @@ import { Alert, Button, Card, Form, Input, Typography } from 'antd';
 import { useState } from 'react';
 import { Navigate, useLocation, type Location } from 'react-router';
 import { useAuth } from '../auth/useAuth';
+import { LOGO_URL } from '../theme';
 import { loginErrorMessage } from './loginErrorMessage';
 
 interface Credentials {
@@ -39,7 +40,7 @@ export function LoginPage() {
     <div className="login-screen">
       <Card className="login-card">
         <div className="login-brand">
-          <img src="/favicon.svg" alt="" width={40} height={40} />
+          <img src={LOGO_URL} alt="" width={40} height={40} />
           <div>
             <Typography.Title level={3} style={{ margin: 0 }}>
               FitFlow Admin
