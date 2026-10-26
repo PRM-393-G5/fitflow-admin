@@ -4,6 +4,7 @@ import {
   loadSession,
   saveSession,
   sessionFromLogin,
+  type LoginResult,
   type Session,
 } from './session';
 
@@ -26,6 +27,18 @@ describe('session storage', () => {
         }),
       ).toThrow('no token lifetime');
     }
+  });
+
+  it('refuses a login result without a token or an admin', () => {
+    expect(() =>
+      sessionFromLogin({ expiresIn: 60, admin } as unknown as LoginResult),
+    ).toThrow('incomplete');
+    expect(() =>
+      sessionFromLogin({
+        accessToken: 't',
+        expiresIn: 60,
+      } as unknown as LoginResult),
+    ).toThrow('incomplete');
   });
 
   it('round-trips a live session', () => {

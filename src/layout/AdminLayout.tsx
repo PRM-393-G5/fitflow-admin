@@ -3,8 +3,7 @@ import { Avatar, Button, Layout, Menu, Space, Typography } from 'antd';
 import { Link, Outlet, useLocation } from 'react-router';
 import { displayName } from '../auth/session';
 import { useAuth } from '../auth/useAuth';
-import { LOGO_URL } from '../theme';
-import { BRAND_COLOR } from '../theme';
+import { BRAND_COLOR, LOGO_URL } from '../theme';
 import { activeNavPath, NAV_ITEMS } from './nav';
 
 export function AdminLayout() {
