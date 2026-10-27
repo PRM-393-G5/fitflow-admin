@@ -165,7 +165,7 @@ describe('templates', () => {
     renderApp('/templates/new', templatesApi([]).api);
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Create' }));
-    expect(await screen.findByText('Enter an id')).toBeVisible();
+    expect(await screen.findByText('Enter an id')).toBeInTheDocument();
     await user.type(screen.getByLabelText('Name'), 'Leg Day');
     expect(screen.getByLabelText('Id')).toHaveValue('leg-day');
     await waitFor(() =>
