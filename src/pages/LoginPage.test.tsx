@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '../api/client';
@@ -104,6 +104,49 @@ describe('login', () => {
       await screen.findByText('Sign in with your admin account'),
     ).toBeVisible();
     expect(router.state.location.pathname).toBe('/login');
+  });
+
+  it('drops cached data when another tab signs in as someone else', async () => {
+    saveSession({
+      accessToken: 'token-1',
+      expiresAt: Date.now() + 60_000,
+      admin,
+    });
+    let healthCalls = 0;
+    renderApp('/', {
+      'GET health': () => {
+        healthCalls += 1;
+        return { status: 200, body: { status: 'ok', database: 'up' } };
+      },
+    });
+    expect(await screen.findByText('API ok, database up')).toBeVisible();
+    saveSession({
+      accessToken: 'token-2',
+      expiresAt: Date.now() + 60_000,
+      admin: { id: 'a2', email: 'other@example.com', name: 'Other' },
+    });
+    dispatchEvent(
+      new StorageEvent('storage', { key: 'fitflow-admin.session' }),
+    );
+    expect(await screen.findByText('Welcome, Other')).toBeVisible();
+    await waitFor(() => expect(healthCalls).toBe(2));
+  });
+
+  it('shows a database outage as a warning', async () => {
+    saveSession({
+      accessToken: 'token-1',
+      expiresAt: Date.now() + 60_000,
+      admin,
+    });
+    renderApp('/', {
+      'GET health': () => ({
+        status: 503,
+        body: { message: 'Database unreachable' },
+      }),
+    });
+    expect(
+      await screen.findByText('API up, database unreachable'),
+    ).toBeVisible();
   });
 
   it('words each failure for the admin', () => {

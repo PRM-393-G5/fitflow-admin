@@ -55,9 +55,10 @@ export function createApiClient(options: ApiClientOptions) {
     if (!response.ok) {
       throw new ApiError(response.status, await errorMessage(response));
     }
-    if (response.status === 204) return undefined as T;
+    const text = await response.text();
+    if (!text) return undefined as T;
     try {
-      return (await response.json()) as T;
+      return JSON.parse(text) as T;
     } catch {
       throw new ApiError(response.status, 'Unexpected response from the API');
     }
