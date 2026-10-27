@@ -6,9 +6,6 @@ v4, React Router, TanStack Query, Recharts). It talks to the
 [FitFlow API](https://github.com/PRM-393-G5/fitflow-api) through its
 `/api/admin/*` routes.
 
-The templates pages still use antd while they move to HeroUI;
-antd is loaded only on those pages.
-
 ## Features
 
 - **Sign-in** with an admin account (email + password).

@@ -42,15 +42,3 @@ export const MUSCLE_GROUPS = [
   'Full body',
   'Cardio',
 ];
-
-export const CATEGORY_COLORS: Record<string, string> = {
-  Strength: 'blue',
-  Cardio: 'orange',
-  Mobility: 'green',
-};
-
-export const LEVEL_COLORS: Record<string, string> = {
-  Beginner: 'default',
-  Intermediate: 'gold',
-  Advanced: 'red',
-};

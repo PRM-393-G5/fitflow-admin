@@ -73,7 +73,7 @@ const rowNames = () =>
   screen
     .getAllByRole('row')
     .slice(1)
-    .map((row) => within(row).getAllByRole('cell')[1].textContent);
+    .map((row) => within(row).getByRole('rowheader').textContent);
 
 describe('templates', () => {
   beforeEach(signIn);
@@ -130,9 +130,11 @@ describe('templates', () => {
     expect(screen.getByLabelText('Id')).toHaveValue('day-nguc');
     await user.type(screen.getByLabelText('Name of exercise 1'), 'Push-up');
     await user.type(
-      screen.getByLabelText('Muscle group of exercise 1'),
+      screen.getByRole('combobox', { name: 'Muscle group of exercise 1' }),
       'Chest',
     );
+    // Moving on closes the suggestions.
+    await user.tab();
     await user.click(screen.getByRole('button', { name: 'Create' }));
 
     await waitFor(() =>
@@ -179,9 +181,11 @@ describe('templates', () => {
     await user.type(await screen.findByLabelText('Name'), 'Alpha');
     await user.type(screen.getByLabelText('Name of exercise 1'), 'Push-up');
     await user.type(
-      screen.getByLabelText('Muscle group of exercise 1'),
+      screen.getByRole('combobox', { name: 'Muscle group of exercise 1' }),
       'Chest',
     );
+    // Moving on closes the suggestions.
+    await user.tab();
     await user.click(screen.getByRole('button', { name: 'Create' }));
     expect(
       await screen.findByText('Template alpha already exists'),
@@ -215,7 +219,9 @@ describe('templates', () => {
     const { calls } = renderApp('/templates/a/edit', api);
     const user = userEvent.setup();
     await user.click(await screen.findByText('Timed'));
-    const seconds = screen.getByLabelText('Seconds of exercise 1');
+    const seconds = screen.getByRole('textbox', {
+      name: 'Seconds of exercise 1',
+    });
     await user.clear(seconds);
     await user.type(seconds, '45');
     await user.click(screen.getByRole('button', { name: 'Save' }));
@@ -248,9 +254,9 @@ describe('templates', () => {
     ]);
     renderApp('/templates/a/edit', api);
     const user = userEvent.setup();
-    expect(await screen.findByLabelText('Seconds of exercise 1')).toHaveValue(
-      '300',
-    );
+    expect(
+      await screen.findByRole('textbox', { name: 'Seconds of exercise 1' }),
+    ).toHaveValue('300');
     await user.click(screen.getByText('Reps'));
     expect(await screen.findByText('1–200 reps')).toBeInTheDocument();
   });

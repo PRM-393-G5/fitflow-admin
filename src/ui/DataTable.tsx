@@ -11,6 +11,8 @@ export interface Column<Row> {
   numeric?: boolean;
   /** Extra classes for the column's cells. */
   className?: string;
+  /** Names the row for screen readers; defaults to the first column. */
+  rowHeader?: boolean;
 }
 
 /**
@@ -50,6 +52,10 @@ export function DataTable<Row>({
   rowRouterOptions?: (row: Row) => NavigateOptions;
   footer?: ReactNode;
 }) {
+  const headerIndex = Math.max(
+    0,
+    columns.findIndex((column) => column.rowHeader),
+  );
   return (
     <Table variant="secondary" className={className}>
       <Table.ScrollContainer className={scrollClassName}>
@@ -58,7 +64,7 @@ export function DataTable<Row>({
             {columns.map((column, index) => (
               <Table.Column
                 key={index}
-                isRowHeader={index === 0}
+                isRowHeader={index === headerIndex}
                 className={column.numeric ? 'text-end' : undefined}
               >
                 {column.title}

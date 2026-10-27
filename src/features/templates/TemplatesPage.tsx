@@ -1,185 +1,235 @@
+import { ArrowDown, ArrowUp, Pencil, Plus, TrashBin } from '@gravity-ui/icons';
 import {
-  ArrowDownOutlined,
-  ArrowUpOutlined,
-  DeleteOutlined,
-  EditOutlined,
-  PlusOutlined,
-} from '@ant-design/icons';
-import {
-  Alert,
-  App,
+  AlertDialog,
   Button,
   Card,
-  Popconfirm,
-  Space,
-  Table,
-  Tag,
+  Link,
+  Spinner,
+  toast,
   Tooltip,
-  Typography,
-} from 'antd';
-import type { ColumnsType } from 'antd/es/table';
-import { Link, useNavigate } from 'react-router';
+} from '@heroui/react';
+import { useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router';
 import { formatDateTime } from '../../format';
+import { DataTable } from '../../ui/DataTable';
+import { EmptyRows, Notice } from '../../ui/feedback';
+import { PageHeader } from '../../ui/PageHeader';
 import { useDeleteTemplate, useReorderTemplates, useTemplates } from './api';
+import { CategoryChip, LevelChip } from './labels';
 import { moved } from './moved';
 import { templateEditPath } from './paths';
-import { CATEGORY_COLORS, LEVEL_COLORS, type Template } from './types';
+import type { Template } from './types';
+
+/** An icon button named for screen readers and, on hover, in a tooltip. */
+function IconAction({
+  label,
+  tip,
+  danger = false,
+  isDisabled,
+  onPress,
+  children,
+}: {
+  label: string;
+  tip: string;
+  danger?: boolean;
+  isDisabled?: boolean;
+  onPress: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Tooltip delay={400}>
+      <Button
+        isIconOnly
+        size="sm"
+        variant={danger ? 'danger-soft' : 'ghost'}
+        aria-label={label}
+        isDisabled={isDisabled}
+        onPress={onPress}
+      >
+        {children}
+      </Button>
+      <Tooltip.Content>{tip}</Tooltip.Content>
+    </Tooltip>
+  );
+}
 
 export function TemplatesPage() {
-  const { message } = App.useApp();
   const navigate = useNavigate();
   const templates = useTemplates();
   const remove = useDeleteTemplate();
   const reorder = useReorderTemplates();
-  const ids = templates.data?.map((item) => item.id) ?? [];
+  const [deleting, setDeleting] = useState<Template | null>(null);
+  const list = templates.data ?? [];
+  const ids = list.map((item) => item.id);
   // Reordering sends every id: wait until the list matches the server.
   const orderLocked =
     reorder.isPending || remove.isPending || templates.isFetching;
 
   const move = (index: number, by: -1 | 1) =>
     reorder.mutate(moved(ids, index, by), {
-      onError: (error) => message.error(error.message),
+      onError: (error) => toast.danger(error.message),
     });
 
-  const columns: ColumnsType<Template> = [
-    {
-      title: '#',
-      key: 'order',
-      width: 56,
-      render: (_, __, index) => index + 1,
-    },
-    {
-      title: 'Name',
-      dataIndex: 'name',
-      render: (name: string, template) => (
-        <Space orientation="vertical" size={0}>
-          <Link to={templateEditPath(template.id)}>{name}</Link>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            {template.id}
-          </Typography.Text>
-        </Space>
-      ),
-    },
-    {
-      title: 'Category',
-      dataIndex: 'category',
-      render: (category: string) => (
-        <Tag color={CATEGORY_COLORS[category]}>{category}</Tag>
-      ),
-    },
-    {
-      title: 'Level',
-      dataIndex: 'level',
-      render: (level: string) => <Tag color={LEVEL_COLORS[level]}>{level}</Tag>,
-    },
-    {
-      title: 'Duration',
-      dataIndex: 'durationMinutes',
-      render: (minutes: number) => `${minutes} min`,
-    },
-    {
-      title: 'Exercises',
-      key: 'exercises',
-      render: (_, template) => template.exercises.length,
-    },
-    {
-      title: 'Last edited',
-      dataIndex: 'updatedAt',
-      render: (updatedAt: string | null) =>
-        updatedAt ? formatDateTime(updatedAt) : '—',
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      width: 200,
-      render: (_, template, index) => (
-        <Space size={4}>
-          <Tooltip title="Move up">
-            <Button
-              size="small"
-              icon={<ArrowUpOutlined />}
-              aria-label={`Move ${template.name} up`}
-              disabled={index === 0 || orderLocked}
-              onClick={() => move(index, -1)}
-            />
-          </Tooltip>
-          <Tooltip title="Move down">
-            <Button
-              size="small"
-              icon={<ArrowDownOutlined />}
-              aria-label={`Move ${template.name} down`}
-              disabled={index === ids.length - 1 || orderLocked}
-              onClick={() => move(index, 1)}
-            />
-          </Tooltip>
-          <Tooltip title="Edit">
-            <Button
-              size="small"
-              icon={<EditOutlined />}
-              aria-label={`Edit ${template.name}`}
-              onClick={() => navigate(templateEditPath(template.id))}
-            />
-          </Tooltip>
-          <Popconfirm
-            title={`Delete “${template.name}”?`}
-            description="Phones drop it from the library on their next refresh."
-            okText="Delete"
-            okButtonProps={{ danger: true }}
-            onConfirm={() =>
-              remove.mutateAsync(template.id).then(
-                () => message.success(`Deleted ${template.name}`),
-                (error: Error) => message.error(error.message),
-              )
-            }
-          >
-            <Button
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-              aria-label={`Delete ${template.name}`}
-              disabled={orderLocked}
-            />
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
+  const confirmDelete = () => {
+    if (!deleting) return;
+    const template = deleting;
+    setDeleting(null);
+    remove.mutate(template.id, {
+      onSuccess: () => toast.success(`Deleted ${template.name}`),
+      onError: (error) => toast.danger(error.message),
+    });
+  };
 
   return (
     <>
-      <div className="page-header">
-        <div>
-          <Typography.Title level={2}>Workout templates</Typography.Title>
-          <Typography.Text type="secondary">
-            The public library every FitFlow user sees, in this order.
-          </Typography.Text>
-        </div>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => navigate('/templates/new')}
-        >
-          New template
-        </Button>
-      </div>
+      <PageHeader
+        title="Workout templates"
+        description="The public library every FitFlow user sees, in this order."
+        actions={
+          <Button onPress={() => navigate('/templates/new')}>
+            <Plus />
+            New template
+          </Button>
+        }
+      />
       {templates.isError && (
-        <Alert
-          type="error"
-          showIcon
-          title={templates.error.message}
-          style={{ marginBottom: 16 }}
-        />
+        <Notice status="danger" title={templates.error.message} />
       )}
       <Card>
-        <Table<Template>
-          rowKey="id"
-          columns={columns}
-          dataSource={templates.data}
-          loading={templates.isPending}
-          pagination={false}
-          scroll={{ x: 900 }}
+        <DataTable
+          label="Workout templates"
+          contentClassName="min-w-[900px]"
+          rows={list}
+          rowKey={(template) => template.id}
+          empty={
+            templates.isPending ? (
+              <div className="flex justify-center py-10">
+                <Spinner aria-label="Loading templates" />
+              </div>
+            ) : (
+              <EmptyRows>No templates yet</EmptyRows>
+            )
+          }
+          columns={[
+            {
+              title: '#',
+              className: 'tabular w-12 text-muted',
+              render: (template) => ids.indexOf(template.id) + 1,
+            },
+            {
+              title: 'Name',
+              rowHeader: true,
+              render: (template) => (
+                <div className="min-w-0">
+                  <Link href={templateEditPath(template.id)}>
+                    {template.name}
+                  </Link>
+                  <div className="truncate font-mono text-xs text-muted">
+                    {template.id}
+                  </div>
+                </div>
+              ),
+            },
+            {
+              title: 'Category',
+              render: (template) => (
+                <CategoryChip category={template.category} />
+              ),
+            },
+            {
+              title: 'Level',
+              render: (template) => <LevelChip level={template.level} />,
+            },
+            {
+              title: 'Duration',
+              numeric: true,
+              render: (template) => `${template.durationMinutes} min`,
+            },
+            {
+              title: 'Exercises',
+              numeric: true,
+              render: (template) => template.exercises.length,
+            },
+            {
+              title: 'Last edited',
+              className: 'tabular whitespace-nowrap',
+              render: (template) =>
+                template.updatedAt ? formatDateTime(template.updatedAt) : '—',
+            },
+            {
+              title: 'Actions',
+              render: (template) => {
+                const index = ids.indexOf(template.id);
+                return (
+                  <div className="flex items-center gap-1">
+                    <IconAction
+                      label={`Move ${template.name} up`}
+                      tip="Move up"
+                      isDisabled={index === 0 || orderLocked}
+                      onPress={() => move(index, -1)}
+                    >
+                      <ArrowUp />
+                    </IconAction>
+                    <IconAction
+                      label={`Move ${template.name} down`}
+                      tip="Move down"
+                      isDisabled={index === ids.length - 1 || orderLocked}
+                      onPress={() => move(index, 1)}
+                    >
+                      <ArrowDown />
+                    </IconAction>
+                    <IconAction
+                      label={`Edit ${template.name}`}
+                      tip="Edit"
+                      onPress={() => navigate(templateEditPath(template.id))}
+                    >
+                      <Pencil />
+                    </IconAction>
+                    <IconAction
+                      label={`Delete ${template.name}`}
+                      tip="Delete"
+                      danger
+                      isDisabled={orderLocked}
+                      onPress={() => setDeleting(template)}
+                    >
+                      <TrashBin />
+                    </IconAction>
+                  </div>
+                );
+              },
+            },
+          ]}
         />
       </Card>
+
+      <AlertDialog.Backdrop
+        isOpen={deleting !== null}
+        onOpenChange={(open) => !open && setDeleting(null)}
+        isDismissable
+        isKeyboardDismissDisabled={false}
+      >
+        <AlertDialog.Container>
+          <AlertDialog.Dialog className="sm:max-w-md">
+            <AlertDialog.Header>
+              <AlertDialog.Icon status="danger" />
+              <AlertDialog.Heading>
+                Delete “{deleting?.name}”?
+              </AlertDialog.Heading>
+            </AlertDialog.Header>
+            <AlertDialog.Body>
+              <p>Phones drop it from the library on their next refresh.</p>
+            </AlertDialog.Body>
+            <AlertDialog.Footer>
+              <Button slot="close" variant="tertiary">
+                Cancel
+              </Button>
+              <Button variant="danger" onPress={confirmDelete}>
+                Delete
+              </Button>
+            </AlertDialog.Footer>
+          </AlertDialog.Dialog>
+        </AlertDialog.Container>
+      </AlertDialog.Backdrop>
     </>
   );
 }
