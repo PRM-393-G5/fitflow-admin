@@ -5,6 +5,15 @@ React, Vite and TypeScript (antd, React Router, TanStack Query). It talks
 to the [FitFlow API](https://github.com/PRM-393-G5/fitflow-api) through its
 `/api/admin/*` routes.
 
+## Features
+
+- **Sign-in** with an admin account (email + password).
+- **Workout templates**: the public library every FitFlow user sees. List
+  in display order, move templates up or down, create, edit and delete.
+  The form follows the app's rules (levels, categories, reps or timed
+  exercises) and shows the duration the app will compute; existing
+  exercise ids are kept so users' history still matches.
+
 ## Requirements
 
 - Node.js 24 and npm

@@ -6,4 +6,10 @@ describe('activeNavPath', () => {
     expect(activeNavPath('/')).toBe('/');
     expect(activeNavPath('/nowhere')).toBe('/');
   });
+
+  it('highlights a section for its sub-pages', () => {
+    expect(activeNavPath('/templates')).toBe('/templates');
+    expect(activeNavPath('/templates/new')).toBe('/templates');
+    expect(activeNavPath('/templates-old')).toBe('/');
+  });
 });
