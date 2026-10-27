@@ -159,10 +159,23 @@ describe('login', () => {
     expect(screen.getByText('Enter your password')).toBeVisible();
     expect(calls.some((call) => call.path === 'admin/auth/login')).toBe(false);
 
-    await user.type(email, 'example.com');
+    await user.type(email, 'example..com');
+    expect(screen.getByText('Enter a valid email')).toBeVisible();
+    await user.clear(email);
+    await user.type(email, 'boss@example.com');
     expect(screen.queryByText('Enter a valid email')).toBeNull();
     // The other field keeps its error until it is fixed too.
     expect(screen.getByText('Enter your password')).toBeVisible();
+  });
+
+  it('drops an old sign-in error when the fields need fixing', async () => {
+    renderApp('/login', api);
+    await signIn('boss@example.com', 'wrong-pass');
+    expect(await screen.findByText('Wrong email or password.')).toBeVisible();
+    await userEvent.clear(screen.getByLabelText('Password'));
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByText('Enter your password')).toBeVisible();
+    expect(screen.queryByText('Wrong email or password.')).toBeNull();
   });
 
   it('shows and hides the password', async () => {

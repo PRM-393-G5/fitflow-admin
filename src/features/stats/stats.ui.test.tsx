@@ -210,7 +210,11 @@ describe('AI usage', () => {
       }),
       [`GET ${path('ai', 7)}`]: () => ({
         status: 200,
-        body: { ...aiReport, recent: recent.slice(0, 3) },
+        body: {
+          ...aiReport,
+          range: { ...aiReport.range, days: 7 },
+          recent: recent.slice(0, 3),
+        },
       }),
     });
     await userEvent.click(
@@ -221,5 +225,8 @@ describe('AI usage', () => {
     // Three calls now: they show, on the only page there is.
     expect(await screen.findByRole('link', { name: 'User 3' })).toBeVisible();
     expect(screen.queryByText('No AI calls yet')).toBeNull();
+    // Back to 30 days: the newest calls again, not the old page 2.
+    await userEvent.click(screen.getByText('Last 30 days'));
+    expect(await screen.findByText('1–10 of 12 calls')).toBeVisible();
   });
 });
