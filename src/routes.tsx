@@ -4,6 +4,11 @@ import { AdminLayout } from './layout/AdminLayout';
 import { DashboardPage } from './pages/DashboardPage';
 import { LoginPage } from './pages/LoginPage';
 
+const templateEditor = () =>
+  import('./features/templates/TemplateEditorPage').then((module) => ({
+    Component: module.TemplateEditorPage,
+  }));
+
 export const routes: RouteObject[] = [
   { path: '/login', element: <LoginPage /> },
   {
@@ -23,18 +28,12 @@ export const routes: RouteObject[] = [
       },
       {
         path: 'templates/new',
-        lazy: () =>
-          import('./features/templates/TemplateEditorPage').then((module) => ({
-            Component: module.TemplateEditorPage,
-          })),
+        lazy: templateEditor,
       },
       {
         // `/edit` keeps a template whose id is `new` reachable.
         path: 'templates/:id/edit',
-        lazy: () =>
-          import('./features/templates/TemplateEditorPage').then((module) => ({
-            Component: module.TemplateEditorPage,
-          })),
+        lazy: templateEditor,
       },
     ],
   },

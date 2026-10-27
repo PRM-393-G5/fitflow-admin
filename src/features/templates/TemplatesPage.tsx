@@ -137,6 +137,7 @@ export function TemplatesPage() {
               danger
               icon={<DeleteOutlined />}
               aria-label={`Delete ${template.name}`}
+              disabled={orderLocked}
             />
           </Popconfirm>
         </Space>
