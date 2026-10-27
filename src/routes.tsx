@@ -12,7 +12,30 @@ export const routes: RouteObject[] = [
         <AdminLayout />
       </RequireAuth>
     ),
-    children: [{ index: true, element: <DashboardPage /> }],
+    children: [
+      { index: true, element: <DashboardPage /> },
+      {
+        path: 'templates',
+        lazy: () =>
+          import('./features/templates/TemplatesPage').then((module) => ({
+            Component: module.TemplatesPage,
+          })),
+      },
+      {
+        path: 'templates/new',
+        lazy: () =>
+          import('./features/templates/TemplateEditorPage').then((module) => ({
+            Component: module.TemplateEditorPage,
+          })),
+      },
+      {
+        path: 'templates/:id',
+        lazy: () =>
+          import('./features/templates/TemplateEditorPage').then((module) => ({
+            Component: module.TemplateEditorPage,
+          })),
+      },
+    ],
   },
   { path: '*', element: <Navigate to="/" replace /> },
 ];
