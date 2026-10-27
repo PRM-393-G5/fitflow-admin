@@ -30,10 +30,14 @@ export function UsersPage() {
   // Back, or the sidebar link, can change the URL's search: follow it
   // (adjusting state during render, as React recommends).
   const [searchFrom, setSearchFrom] = useState(query.search);
+  // The search our debounce last wrote: its URL update can land after the
+  // admin typed more, and must not wipe those keystrokes.
+  const [written, setWritten] = useState<string | null>(null);
   if (query.search !== searchFrom) {
     setSearchFrom(query.search);
-    // Our own debounce wrote it: keep the box as typed (spaces included).
-    if (search.trim() !== query.search) setSearch(query.search);
+    if (query.search !== written && search.trim() !== query.search) {
+      setSearch(query.search);
+    }
   }
   const listSearch = useLocation().search;
   const columns = useMemo(() => columnsFor(listSearch), [listSearch]);
@@ -72,10 +76,10 @@ export function UsersPage() {
   // Search as the admin types, once they pause.
   useEffect(() => {
     if (search.trim() === query.search) return;
-    const timer = setTimeout(
-      () => update({ q: search.trim() }),
-      SEARCH_DELAY_MS,
-    );
+    const timer = setTimeout(() => {
+      setWritten(search.trim());
+      update({ q: search.trim() });
+    }, SEARCH_DELAY_MS);
     return () => clearTimeout(timer);
   }, [search, query.search, update]);
 
