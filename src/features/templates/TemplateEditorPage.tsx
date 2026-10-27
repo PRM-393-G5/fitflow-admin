@@ -52,9 +52,7 @@ import {
 import { CATEGORIES, LEVELS, MUSCLE_GROUPS } from './types';
 import {
   amountFor,
-  amountRange,
   hasErrors,
-  LIMITS,
   MAX_MUSCLE_GROUP,
   MAX_NAME,
   MAX_DESCRIPTION,
@@ -135,7 +133,8 @@ const LIST_ERROR_ID = 'exercise-list-error';
 
 // Module-level: React Aria rebuilds a field's parser when these change.
 const WHOLE = { maximumFractionDigits: 0 };
-const FRACTION = { maximumFractionDigits: 2 };
+// Enough digits that leaving the field never rounds a stored load.
+const FRACTION = { maximumFractionDigits: 6 };
 
 /** A NaN from an emptied number field counts as nothing. */
 const orZero = (value: number) => (Number.isFinite(value) ? value : 0);
@@ -234,7 +233,7 @@ function TemplateForm({
         return {
           ...next,
           amounts,
-          amount: amounts[change.mode] ?? amountFor(change.mode, row.amount),
+          amount: amountFor(change.mode, amounts[change.mode] ?? row.amount),
         };
       }),
     }));
@@ -502,7 +501,6 @@ function ExerciseRow({
 }) {
   const number = index + 1;
   const timed = row.mode === 'timed';
-  const amount = amountRange(row.mode);
   const error = (field: keyof ExerciseErrors) => shown(field, errors[field]);
 
   return (
@@ -607,7 +605,6 @@ function ExerciseRow({
           label="Sets"
           row={number}
           value={row.sets}
-          limit={LIMITS.sets}
           error={error('sets')}
           onChange={(sets) => onChange({ sets })}
         />
@@ -615,7 +612,6 @@ function ExerciseRow({
           label={timed ? 'Seconds' : 'Reps'}
           row={number}
           value={row.amount}
-          limit={amount}
           error={error('amount')}
           onChange={(value) => onChange({ amount: value })}
         />
@@ -623,7 +619,6 @@ function ExerciseRow({
           label="Rest (s)"
           row={number}
           value={row.restSeconds}
-          limit={LIMITS.restSeconds}
           error={error('restSeconds')}
           onChange={(restSeconds) => onChange({ restSeconds })}
         />
@@ -631,7 +626,6 @@ function ExerciseRow({
           label="Load (kg)"
           row={number}
           value={row.weightKg}
-          limit={LIMITS.weightKg}
           fraction
           error={error('weightKg')}
           onChange={(weightKg) => onChange({ weightKg })}
@@ -645,7 +639,6 @@ function RowNumber({
   label,
   row,
   value,
-  limit,
   fraction = false,
   error,
   onChange,
@@ -653,7 +646,6 @@ function RowNumber({
   label: string;
   row: number;
   value: number;
-  limit: { min: number; max: number };
   /** Allows decimals (a load); counts are whole. No `step`: React Aria
    * would round typed values to it. */
   fraction?: boolean;
@@ -666,8 +658,8 @@ function RowNumber({
       variant="secondary"
       value={value}
       onChange={onChange}
-      minValue={limit.min}
-      maxValue={limit.max}
+      // No minValue/maxValue: React Aria would show a clamped number over
+      // an out-of-range stored one; validation names the range instead.
       formatOptions={fraction ? FRACTION : WHOLE}
       // Scrolling the page past a focused field must not change it.
       isWheelDisabled

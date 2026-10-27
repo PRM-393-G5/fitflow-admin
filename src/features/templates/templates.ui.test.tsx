@@ -277,6 +277,33 @@ describe('templates', () => {
     );
   });
 
+  it('shows and lets the admin fix a stored amount out of range', async () => {
+    const { api } = templatesApi([
+      {
+        ...template('a', 'Alpha'),
+        exercises: [{ ...exercise, reps: 0, weightKg: 12.345 }],
+      },
+    ]);
+    const { calls } = renderApp('/templates/a/edit', api);
+    const user = userEvent.setup();
+    const reps = await screen.findByRole('textbox', {
+      name: 'Reps of exercise 1',
+    });
+    // The real 0, not a clamped 1 over it.
+    expect(reps).toHaveValue('0');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('1–200 reps')).toBeVisible();
+    await user.clear(reps);
+    await user.type(reps, '1');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(calls.find((call) => call.method === 'PUT')?.body).toMatchObject({
+        // The untouched load keeps all its decimals.
+        exercises: [{ reps: 1, weightKg: 12.345 }],
+      }),
+    );
+  });
+
   it('saves a fractional load as typed', async () => {
     const { api } = templatesApi([template('a', 'Alpha')]);
     const { calls } = renderApp('/templates/a/edit', api);
