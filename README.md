@@ -28,9 +28,9 @@ default) and is kept in the browser's local storage; the admin is sent
 back to the sign-in page when it expires or the API rejects it (e.g. the
 admin's password was reset).
 
-| Variable            | Default                     | Purpose                                |
-| ------------------- | --------------------------- | -------------------------------------- |
-| `VITE_API_BASE_URL` | `http://localhost:3001/api` | FitFlow API base URL, ending in `/api` |
+| Variable            | Default                     | Purpose                                                                                                                            |
+| ------------------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_API_BASE_URL` | `http://localhost:3001/api` | FitFlow API base URL, ending in `/api`. Read at build time: set it when building for a deployment, or the bundle calls `localhost` |
 
 ## Quality checks and tests
 

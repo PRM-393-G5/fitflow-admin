@@ -26,6 +26,13 @@ export function sessionFromLogin(result: LoginResult, now = Date.now()) {
   if (!(Number.isFinite(result.expiresIn) && result.expiresIn > 0)) {
     throw new Error('The API returned no token lifetime');
   }
+  if (
+    typeof result.accessToken !== 'string' ||
+    !result.accessToken ||
+    typeof result.admin?.email !== 'string'
+  ) {
+    throw new Error('The API returned an incomplete sign-in');
+  }
   return {
     accessToken: result.accessToken,
     expiresAt: now + result.expiresIn * 1000,
@@ -54,12 +61,24 @@ export function loadSession(now = Date.now()): Session | null {
   return null;
 }
 
+/**
+ * Persisting is best effort: with storage full or blocked the session
+ * still works in this tab, it just does not survive a reload.
+ */
 export function saveSession(session: Session) {
-  localStorage.setItem(KEY, JSON.stringify(session));
+  try {
+    localStorage.setItem(KEY, JSON.stringify(session));
+  } catch {
+    // Kept in memory only.
+  }
 }
 
 export function clearSession() {
-  localStorage.removeItem(KEY);
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    // Nothing stored that we could remove.
+  }
 }
 
 /** How the admin is shown: their name, else their email. */
