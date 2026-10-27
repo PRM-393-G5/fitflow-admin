@@ -18,14 +18,14 @@ import {
   Input,
   Link,
   Skeleton,
+  Spinner,
   TextField,
   toast,
 } from '@heroui/react';
 import { useState, type ReactNode } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { ApiError } from '../../api/client';
-import { formatCount } from '../../charts/tokens';
-import { formatDateTime } from '../../format';
+import { formatDateTime, formatExact } from '../../format';
 import { DataTable } from '../../ui/DataTable';
 import { EmptyRows, Notice } from '../../ui/feedback';
 import { PageHeader } from '../../ui/PageHeader';
@@ -78,14 +78,16 @@ export function UserDetailPage() {
           title={`Could not refresh this user: ${user.error.message}`}
         />
       )}
-      <UserDetailView user={user.data} backTo={backTo} />
+      {/* Keyed: dialogs opened for one user never act on another. */}
+      <UserDetailView key={user.data.id} user={user.data} backTo={backTo} />
     </>
   );
 }
 
 function DetailSkeleton() {
   return (
-    <div aria-busy aria-label="Loading" className="flex flex-col gap-4">
+    <div role="status" className="flex flex-col gap-4">
+      <span className="sr-only">Loading…</span>
       <div className="flex items-center gap-4">
         <Skeleton className="size-12 rounded-full" />
         <div className="flex flex-col gap-2">
@@ -119,13 +121,15 @@ function UserDetailView({
 
   const toggleLock = () => {
     setConfirmingLock(false);
-    setLocked.mutate(!user.disabled, {
-      onSuccess: () =>
+    // A promise, not mutate callbacks: the result is still reported if
+    // the admin has left the page by the time it arrives.
+    setLocked.mutateAsync(!user.disabled).then(
+      () =>
         toast.success(
           user.disabled ? `Unlocked ${shownName}` : `Locked ${shownName}`,
         ),
-      onError: (error) => toast.danger(error.message),
-    });
+      (error: Error) => toast.danger(error.message),
+    );
   };
 
   return (
@@ -133,14 +137,13 @@ function UserDetailView({
       <PageHeader
         leading={
           <>
-            <Button
-              isIconOnly
-              variant="ghost"
+            <Link
+              href={backTo}
               aria-label="Back to users"
-              onPress={() => navigate(backTo)}
+              className="flex size-10 items-center justify-center rounded-full text-foreground hover:bg-default"
             >
-              <ArrowLeft />
-            </Button>
+              <ArrowLeft className="size-4" />
+            </Link>
             <UserAvatar size="lg" name={shownName} photoUrl={user.photoUrl} />
           </>
         }
@@ -158,7 +161,13 @@ function UserDetailView({
               isPending={setLocked.isPending}
               onPress={() => setConfirmingLock(true)}
             >
-              {user.disabled ? <LockOpen /> : <Lock />}
+              {setLocked.isPending ? (
+                <Spinner color="current" size="sm" />
+              ) : user.disabled ? (
+                <LockOpen />
+              ) : (
+                <Lock />
+              )}
               {user.disabled ? 'Unlock' : 'Lock'}
             </Button>
             <Button
@@ -187,7 +196,7 @@ function UserDetailView({
           <StatTile
             label="Workouts"
             icon={<Flame />}
-            value={formatCount(user.counts.sessions)}
+            value={formatExact(user.counts.sessions)}
           />
           <StatTile
             label="Training time"
@@ -202,7 +211,7 @@ function UserDetailView({
           <StatTile
             label="Form checks"
             icon={<Camera />}
-            value={formatCount(user.counts.formChecks)}
+            value={formatExact(user.counts.formChecks)}
           />
         </div>
 
@@ -220,16 +229,16 @@ function UserDetailView({
                   'Last sync',
                   user.lastSyncAt ? formatDateTime(user.lastSyncAt) : '—',
                 ],
-                ['Custom plans', formatCount(user.counts.workouts)],
+                ['Custom plans', formatExact(user.counts.workouts)],
                 [
                   'Weight entries',
-                  `${formatCount(user.counts.weights)}${
+                  `${formatExact(user.counts.weights)}${
                     user.latestWeightKg === null
                       ? ''
                       : ` (latest ${formatKg(user.latestWeightKg)})`
                   }`,
                 ],
-                ['Meals logged', formatCount(user.counts.meals)],
+                ['Meals logged', formatExact(user.counts.meals)],
               ]}
             />
           </SectionCard>
@@ -276,7 +285,7 @@ function UserDetailView({
               {
                 title: 'Sets',
                 numeric: true,
-                render: (session) => formatCount(session.completedSets),
+                render: (session) => formatExact(session.completedSets),
               },
               {
                 title: 'Volume',
@@ -468,6 +477,7 @@ function DeleteUserDialog({
               isPending={deleting}
               onPress={onConfirm}
             >
+              {deleting && <Spinner color="current" size="sm" />}
               Delete account
             </Button>
           </AlertDialog.Footer>

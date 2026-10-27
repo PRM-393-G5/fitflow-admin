@@ -334,6 +334,50 @@ describe('users', () => {
     expect(await screen.findByText('User not found')).toBeVisible();
   });
 
+  it('says the list failed to load, not that nothing matched', async () => {
+    renderApp('/users', {
+      'GET admin/users?page=1&limit=20': () => ({
+        status: 500,
+        body: { message: 'Database unreachable' },
+      }),
+    });
+    expect(await screen.findByText('Database unreachable')).toBeVisible();
+    expect(screen.getByText('The list could not be loaded.')).toBeVisible();
+    expect(screen.queryByText('No users match these filters')).toBeNull();
+    expect(screen.queryByText(/of 0 users/)).toBeNull();
+  });
+
+  it('links back to the list with its filters, and reports a lock', async () => {
+    const { router } = renderApp('/users?status=active', {
+      'GET admin/users?page=1&limit=20&status=active': () => page([alice]),
+      'GET admin/users/u1': () => ({ status: 200, body: aliceDetail }),
+      'PATCH admin/users/u1': () => ({
+        status: 200,
+        body: { ...alice, disabled: true },
+      }),
+    });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('link', { name: 'Alice Nguyen' }));
+    const back = await screen.findByRole('link', { name: 'Back to users' });
+    expect(back).toHaveAttribute('href', '/users?status=active');
+
+    await user.click(screen.getByRole('button', { name: /Lock/ }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Lock account',
+      }),
+    );
+    expect(await screen.findByText('Locked Alice Nguyen')).toBeVisible();
+
+    await user.click(back);
+    await waitFor(() =>
+      expect(router.state.location).toMatchObject({
+        pathname: '/users',
+        search: '?status=active',
+      }),
+    );
+  });
+
   it('says when a user does not exist', async () => {
     renderApp('/users/nope', {
       'GET admin/users/nope': () => ({
