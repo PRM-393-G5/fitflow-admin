@@ -28,11 +28,16 @@ import { useEffect, useRef } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ApiError } from '../../api/client';
 import { useSaveTemplate, useTemplate } from './api';
-import { TEMPLATE_ID_PATTERN, templateIdFor } from './ids';
+import {
+  MAX_TEMPLATE_ID_LENGTH,
+  TEMPLATE_ID_PATTERN,
+  templateIdFor,
+} from './ids';
 import {
   estimateMinutes,
   fromFormValues,
   NEW_EXERCISE,
+  workOf,
   toFormValues,
   type ExerciseFormValues,
   type TemplateFormValues,
@@ -58,7 +63,8 @@ export function TemplateEditorPage() {
   if (id !== undefined && existing.isPending) {
     return <Skeleton active paragraph={{ rows: 8 }} />;
   }
-  if (id !== undefined && existing.isError) {
+  // A failed background refetch keeps the cached template (and the form).
+  if (id !== undefined && existing.isError && !existing.data) {
     const notFound =
       existing.error instanceof ApiError && existing.error.status === 404;
     return (
@@ -102,13 +108,17 @@ function TemplateForm({
 
   const exercises = Form.useWatch('exercises', form) as
     ExerciseFormValues[] | undefined;
+  // Rows being edited can have empty fields.
   const minutes = estimateMinutes(
-    (exercises ?? []).map((exercise) => ({
-      sets: exercise?.sets ?? 0,
-      reps: exercise?.mode === 'timed' ? 0 : (exercise?.amount ?? 0),
-      durationSeconds: exercise?.mode === 'timed' ? (exercise?.amount ?? 0) : 0,
-      restSeconds: exercise?.restSeconds ?? 0,
-    })),
+    (exercises ?? []).map((exercise) =>
+      workOf({
+        ...NEW_EXERCISE,
+        mode: exercise?.mode ?? 'reps',
+        sets: exercise?.sets ?? 0,
+        amount: exercise?.amount ?? 0,
+        restSeconds: exercise?.restSeconds ?? 0,
+      }),
+    ),
   );
 
   const onFinish = (values: TemplateFormValues) =>
@@ -181,7 +191,7 @@ function TemplateForm({
               }
               rules={[
                 { required: true, message: 'Enter an id' },
-                { max: 64 },
+                { max: MAX_TEMPLATE_ID_LENGTH },
                 {
                   pattern: TEMPLATE_ID_PATTERN,
                   message:
@@ -360,6 +370,8 @@ function ExerciseRow({
           <Form.Item
             label={timed ? 'Seconds' : 'Reps'}
             name={[name, 'amount']}
+            // Re-check the limit when the type switches.
+            dependencies={[['exercises', name, 'mode']]}
             rules={[
               {
                 required: true,

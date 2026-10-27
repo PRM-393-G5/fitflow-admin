@@ -15,6 +15,10 @@ describe('templateIdFor', () => {
     expect(templateIdFor('Custom Legs')).toBe('plan-custom-legs');
     expect(templateIdFor('Form check')).toBe('plan-form-check');
     expect(templateIdFor('')).toBe('');
+    // Never longer than the API allows, even with the prefix.
+    const long = templateIdFor(`Custom ${'x'.repeat(80)}`);
+    expect(long.length).toBeLessThanOrEqual(64);
+    expect(long.startsWith('plan-custom-')).toBe(true);
   });
 });
 

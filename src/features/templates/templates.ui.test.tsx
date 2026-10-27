@@ -178,7 +178,7 @@ describe('templates', () => {
 
   it('edits a template, keeping its id and exercise ids', async () => {
     const { api } = templatesApi([template('a', 'Alpha')]);
-    const { router, calls } = renderApp('/templates/a', api);
+    const { router, calls } = renderApp('/templates/a/edit', api);
     const user = userEvent.setup();
     const name = await screen.findByLabelText('Name');
     expect(screen.getByLabelText('Id')).toBeDisabled();
@@ -200,7 +200,7 @@ describe('templates', () => {
 
   it('switches an exercise to timed', async () => {
     const { api } = templatesApi([template('a', 'Alpha')]);
-    const { calls } = renderApp('/templates/a', api);
+    const { calls } = renderApp('/templates/a/edit', api);
     const user = userEvent.setup();
     await user.click(await screen.findByText('Timed'));
     const seconds = screen.getByLabelText('Seconds of exercise 1');
@@ -214,8 +214,21 @@ describe('templates', () => {
     );
   });
 
+  it('edits a template whose id is "new"', async () => {
+    const { api } = templatesApi([template('new', 'New')]);
+    const { calls } = renderApp('/templates', api);
+    await userEvent.click(await screen.findByRole('link', { name: 'New' }));
+    expect(await screen.findByLabelText('Id')).toHaveValue('new');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(calls.find((call) => call.method === 'PUT')?.path).toBe(
+        'admin/templates/new',
+      ),
+    );
+  });
+
   it('says when a template does not exist', async () => {
-    renderApp('/templates/missing', templatesApi([]).api);
+    renderApp('/templates/missing/edit', templatesApi([]).api);
     expect(await screen.findByText('Template not found')).toBeVisible();
   });
 });
