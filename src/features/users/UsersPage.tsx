@@ -119,6 +119,7 @@ export function UsersPage() {
                     />
                   </div>
                   <Select
+                    variant="secondary"
                     className="w-36"
                     value={query.limit}
                     onChange={(limit) => update({ limit: String(limit) })}
