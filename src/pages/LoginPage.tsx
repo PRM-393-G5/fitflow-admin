@@ -122,9 +122,10 @@ export function LoginPage() {
           </span>
         </div>
         <div className="relative max-w-md">
-          <h2 className="text-4xl leading-tight font-semibold tracking-tight">
+          {/* Not a heading: the form's "Welcome back" is the page's h1. */}
+          <p className="text-4xl leading-tight font-semibold tracking-tight">
             Everything behind the FitFlow app, in one place.
-          </h2>
+          </p>
           <ul className="mt-10 space-y-6">
             {HIGHLIGHTS.map(({ Icon, title, text }) => (
               <li key={title} className="flex gap-4">
@@ -156,7 +157,7 @@ export function LoginPage() {
           </p>
 
           {error && (
-            <Alert status="danger" className="mt-6">
+            <Alert status="danger" role="alert" className="mt-6">
               <Alert.Indicator />
               <Alert.Content>
                 <Alert.Title>{error}</Alert.Title>

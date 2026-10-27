@@ -6,7 +6,7 @@ export interface Column<Row> {
   /** The header. */
   title: string;
   render: (row: Row) => ReactNode;
-  /** Right-aligned, with tabular figures. */
+  /** Right-aligned, with tabular-nums figures. */
   numeric?: boolean;
   /** Extra classes for the column's cells. */
   className?: string;
@@ -67,7 +67,7 @@ export function DataTable<Row>({
                   <Table.Cell
                     key={index}
                     className={[
-                      column.numeric && 'tabular text-end',
+                      column.numeric && 'tabular-nums text-end',
                       column.className,
                     ]
                       .filter(Boolean)

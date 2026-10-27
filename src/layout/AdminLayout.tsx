@@ -20,7 +20,7 @@ export function AdminLayout() {
 
   return (
     <div className="flex min-h-screen bg-background">
-      <aside className="sticky top-0 flex h-screen w-16 shrink-0 flex-col border-r border-separator bg-surface lg:w-64">
+      <aside className="sticky top-0 flex h-dvh w-16 overflow-y-auto shrink-0 flex-col border-r border-separator bg-surface lg:w-64">
         <Link
           to="/"
           className="flex h-16 items-center gap-3 px-4 lg:px-5"

@@ -1,5 +1,9 @@
 export type PageItem = number | 'gap';
 
+/** How many pages [total] items fill; an empty list still has page 1. */
+export const pageCountOf = (total: number, pageSize: number) =>
+  Math.max(1, Math.ceil(total / pageSize));
+
 /**
  * The page numbers to show: always the first, the last and the
  * current page with its neighbours; skipped runs become one gap.

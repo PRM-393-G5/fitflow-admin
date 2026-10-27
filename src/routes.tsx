@@ -3,6 +3,7 @@ import { RequireAuth } from './auth/RequireAuth';
 import { AdminLayout } from './layout/AdminLayout';
 import { AriaRouter } from './layout/AriaRouter';
 import { LoginPage } from './pages/LoginPage';
+import { PageLoading } from './ui/feedback';
 
 const templateEditor = () =>
   import('./features/templates/TemplateEditorPage').then((module) => ({
@@ -77,5 +78,6 @@ const pages: RouteObject[] = [
 ];
 
 export const routes: RouteObject[] = [
-  { element: <AriaRouter />, children: pages },
+  // The first visit waits for a lazy page's code: show a spinner.
+  { element: <AriaRouter />, HydrateFallback: PageLoading, children: pages },
 ];
