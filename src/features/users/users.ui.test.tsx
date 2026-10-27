@@ -81,7 +81,7 @@ describe('users', () => {
     const rows = screen.getAllByRole('row').slice(1);
     expect(within(rows[0]).getByText('Active')).toBeVisible();
     expect(within(rows[1]).getByText('Locked')).toBeVisible();
-    expect(screen.getByText('2 users')).toBeVisible();
+    expect(screen.getByText('1–2 of 2 users')).toBeVisible();
   });
 
   it('searches and filters through the URL', async () => {
@@ -99,9 +99,7 @@ describe('users', () => {
         screen.queryByRole('link', { name: 'bob@example.com' }),
       ).toBeNull(),
     );
-    await user.click(
-      screen.getByText('Locked', { selector: '.ant-segmented-item-label' }),
-    );
+    await user.click(screen.getByRole('radio', { name: 'Locked' }));
     await waitFor(() =>
       expect(calls.at(-1)?.path).toBe(
         'admin/users?page=1&limit=20&search=alice&status=locked',
@@ -188,6 +186,52 @@ describe('users', () => {
     );
   });
 
+  it('opens a user from the name link with one history entry', async () => {
+    const { router } = renderApp('/users', {
+      'GET admin/users?page=1&limit=20': () => page([alice]),
+      'GET admin/users/u1': () => ({ status: 200, body: aliceDetail }),
+    });
+    await userEvent.click(
+      await screen.findByRole('link', { name: 'Alice Nguyen' }),
+    );
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe('/users/u1'),
+    );
+    // The row did not open the user a second time.
+    await router.navigate(-1);
+    expect(router.state.location.pathname).toBe('/users');
+  });
+
+  it('pages and resizes the list through the URL', async () => {
+    const { router } = renderApp('/users', {
+      'GET admin/users?page=1&limit=20': () => ({
+        status: 200,
+        body: { items: [alice, bob], total: 45, page: 1, limit: 20 },
+      }),
+      'GET admin/users?page=2&limit=20': () => ({
+        status: 200,
+        body: { items: [bob], total: 45, page: 2, limit: 20 },
+      }),
+      'GET admin/users?page=1&limit=50': () => ({
+        status: 200,
+        body: { items: [alice, bob], total: 45, page: 1, limit: 50 },
+      }),
+    });
+    const user = userEvent.setup();
+    expect(await screen.findByText('1–20 of 45 users')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Page 2' }));
+    expect(await screen.findByText('21–40 of 45 users')).toBeVisible();
+    expect(router.state.location.search).toBe('?page=2');
+
+    await user.click(screen.getByRole('button', { name: /per page/ }));
+    await user.click(
+      await screen.findByRole('option', { name: '50 per page' }),
+    );
+    expect(await screen.findByText('1–45 of 45 users')).toBeVisible();
+    // A new page size starts again from page 1.
+    expect(router.state.location.search).toBe('?limit=50');
+  });
+
   it("shows a user's profile, totals and recent sessions", async () => {
     renderApp('/users/u1', {
       'GET admin/users/u1': () => ({ status: 200, body: aliceDetail }),
@@ -218,8 +262,8 @@ describe('users', () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: /Lock/ }));
     await user.click(
-      within(await screen.findByRole('tooltip')).getByRole('button', {
-        name: 'Lock',
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Lock account',
       }),
     );
     expect(
@@ -228,7 +272,8 @@ describe('users', () => {
     expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({
       disabled: true,
     });
-    expect(screen.getByText('Locked', { selector: '.ant-tag' })).toBeVisible();
+    expect(screen.getByText('Locked')).toBeVisible();
+    expect(screen.getByRole('button', { name: /Unlock/ })).toBeVisible();
   });
 
   it('deletes an account only once the email is typed', async () => {
