@@ -123,7 +123,7 @@ describe('dashboard', () => {
     await screen.findByText('300');
     const card = screen
       .getByText('Workouts per day')
-      .closest('.ant-card') as HTMLElement;
+      .closest('.card') as HTMLElement;
     await userEvent.click(within(card).getByText('Table'));
     const rows = within(card).getAllByRole('row').slice(1);
     // Newest day first: day, workouts, form checks.
@@ -157,12 +157,39 @@ describe('AI usage', () => {
       [`GET ${path('ai', 30)}`]: () => ({ status: 200, body: aiReport }),
     });
     const card = (await screen.findByText('Calls by feature')).closest(
-      '.ant-card',
+      '.card',
     ) as HTMLElement;
     await userEvent.click(within(card).getByText('Table'));
     await waitFor(() =>
       expect(within(card).getByText('Meal plan')).toBeVisible(),
     );
     expect(within(card).getByText('Food photo')).toBeVisible();
+  });
+
+  it('pages through the latest calls', async () => {
+    const recent = Array.from({ length: 12 }, (_, index) => ({
+      ...aiReport.recent[0],
+      id: `c${index + 1}`,
+      ok: true,
+      errorCode: null,
+      user: {
+        id: `u${index + 1}`,
+        email: `user${index + 1}@example.com`,
+        name: `User ${index + 1}`,
+      },
+    }));
+    renderApp('/ai', {
+      [`GET ${path('ai', 30)}`]: () => ({
+        status: 200,
+        body: { ...aiReport, recent },
+      }),
+    });
+    expect(await screen.findByText('1–10 of 12 calls')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'User 10' })).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'User 11' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Page 2' }));
+    expect(await screen.findByText('11–12 of 12 calls')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'User 11' })).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'User 10' })).toBeNull();
   });
 });

@@ -8,7 +8,7 @@ import {
   YAxis,
 } from 'recharts';
 import { ChartTooltip } from './ChartTooltip';
-import { CHART, formatCount } from './tokens';
+import { formatCount, useChartTokens } from './tokens';
 
 export interface LabelledValue {
   label: string;
@@ -26,6 +26,7 @@ export function HorizontalBarChart({
   data: LabelledValue[];
   valueLabel: string;
 }) {
+  const CHART = useChartTokens();
   const rowHeight = 36;
   return (
     <ResponsiveContainer
@@ -47,7 +48,7 @@ export function HorizontalBarChart({
           tickLine={false}
         />
         <Tooltip
-          cursor={{ fill: CHART.grid, fillOpacity: 0.5 }}
+          cursor={{ fill: CHART.cursor }}
           content={({ active, payload }) =>
             active && payload?.length ? (
               <ChartTooltip

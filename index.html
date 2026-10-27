@@ -1,12 +1,25 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="light" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FitFlow Admin</title>
+    <script>
+      // Apply the saved theme before the first paint (no light flash).
+      (function () {
+        var saved = localStorage.getItem('fitflow-admin.theme') || 'system';
+        var dark =
+          saved === 'dark' ||
+          (saved === 'system' &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches);
+        var theme = dark ? 'dark' : 'light';
+        document.documentElement.className = theme;
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
   </head>
-  <body>
+  <body class="bg-background text-foreground antialiased">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

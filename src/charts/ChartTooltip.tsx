@@ -1,4 +1,4 @@
-import { CHART, formatCount } from './tokens';
+import { formatCount } from './tokens';
 
 export interface TooltipRow {
   label: string;
@@ -19,17 +19,15 @@ export function ChartTooltip({
 }) {
   return (
     <div className="chart-tooltip">
-      <div className="chart-tooltip-title">{title}</div>
+      <div className="mb-1 text-xs text-muted">{title}</div>
       {rows.map((row) => (
-        <div key={row.label} className="chart-tooltip-row">
+        <div key={row.label} className="tabular flex items-center gap-2">
           <span
-            className="chart-tooltip-key"
+            className="h-0.5 w-3 rounded-full"
             style={{ backgroundColor: row.color }}
           />
-          <strong style={{ color: CHART.inkPrimary }}>
-            {formatCount(row.value)}
-          </strong>
-          <span style={{ color: CHART.inkSecondary }}>{row.label}</span>
+          <strong className="font-semibold">{formatCount(row.value)}</strong>
+          <span className="text-muted">{row.label}</span>
         </div>
       ))}
     </div>
