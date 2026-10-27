@@ -144,6 +144,24 @@ describe('users', () => {
     );
   });
 
+  it('follows Back to a search the page itself wrote', async () => {
+    const { router } = renderApp('/users', {
+      'GET admin/users?page=1&limit=20': () => page([alice, bob]),
+      'GET admin/users?page=1&limit=20&search=bob': () => page([bob]),
+    });
+    const user = userEvent.setup();
+    const box = await screen.findByLabelText('Search users');
+    await user.type(box, 'bob');
+    await waitFor(() => expect(router.state.location.search).toBe('?q=bob'));
+    await router.navigate('/users');
+    await waitFor(() => expect(box).toHaveValue(''));
+    await router.navigate(-1);
+    await waitFor(() => expect(box).toHaveValue('bob'));
+    // The debounce must not overwrite the restored search.
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(router.state.location.search).toBe('?q=bob');
+  });
+
   it('goes back to the last page when the asked one is past the end', async () => {
     const { router } = renderApp('/users?page=3', {
       'GET admin/users?page=3&limit=20': () => ({

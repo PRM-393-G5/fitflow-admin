@@ -35,7 +35,10 @@ export function UsersPage() {
   const [written, setWritten] = useState<string | null>(null);
   if (query.search !== searchFrom) {
     setSearchFrom(query.search);
-    if (query.search !== written && search.trim() !== query.search) {
+    if (query.search === written) {
+      // Our write has landed; from now on this value is like any other.
+      setWritten(null);
+    } else if (search.trim() !== query.search) {
       setSearch(query.search);
     }
   }
