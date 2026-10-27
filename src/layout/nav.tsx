@@ -1,4 +1,8 @@
-import { AppstoreOutlined, DashboardOutlined } from '@ant-design/icons';
+import {
+  AppstoreOutlined,
+  DashboardOutlined,
+  TeamOutlined,
+} from '@ant-design/icons';
 import type { ReactNode } from 'react';
 
 interface NavItem {
@@ -10,6 +14,7 @@ interface NavItem {
 /** The sidebar; each feature adds its page here. */
 export const NAV_ITEMS: NavItem[] = [
   { path: '/', label: 'Dashboard', icon: <DashboardOutlined /> },
+  { path: '/users', label: 'Users', icon: <TeamOutlined /> },
   { path: '/templates', label: 'Templates', icon: <AppstoreOutlined /> },
 ];
 
