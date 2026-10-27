@@ -29,7 +29,8 @@ export const routes: RouteObject[] = [
           })),
       },
       {
-        path: 'templates/:id',
+        // `/edit` keeps a template whose id is `new` reachable.
+        path: 'templates/:id/edit',
         lazy: () =>
           import('./features/templates/TemplateEditorPage').then((module) => ({
             Component: module.TemplateEditorPage,

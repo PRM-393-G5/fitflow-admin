@@ -55,6 +55,17 @@ export function toFormValues(template: Template): TemplateFormValues {
   };
 }
 
+/** The sets, reps or hold, and rest of an editor row, as the API has them. */
+export function workOf(exercise: ExerciseFormValues) {
+  const timed = exercise.mode === 'timed';
+  return {
+    sets: exercise.sets,
+    reps: timed ? 0 : exercise.amount,
+    durationSeconds: timed ? exercise.amount : 0,
+    restSeconds: exercise.restSeconds,
+  };
+}
+
 export function fromFormValues(values: TemplateFormValues): TemplateInput {
   const ids = assignExerciseIds(values.exercises);
   const exercises: TemplateExercise[] = values.exercises.map(
@@ -62,10 +73,7 @@ export function fromFormValues(values: TemplateFormValues): TemplateInput {
       id: ids[index],
       name: exercise.name.trim(),
       muscleGroup: exercise.muscleGroup.trim(),
-      sets: exercise.sets,
-      reps: exercise.mode === 'reps' ? exercise.amount : 0,
-      durationSeconds: exercise.mode === 'timed' ? exercise.amount : 0,
-      restSeconds: exercise.restSeconds,
+      ...workOf(exercise),
       weightKg: exercise.weightKg,
     }),
   );

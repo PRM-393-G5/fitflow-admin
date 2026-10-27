@@ -2,6 +2,8 @@
 export const TEMPLATE_ID_PATTERN =
   /^(?!custom-)(?!form-check$)[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+export const MAX_TEMPLATE_ID_LENGTH = 64;
+
 /**
  * Lowercase words joined by `-`, accents removed: "Đẩy ngực nâng cao" →
  * "day-nguc-nang-cao". Empty when nothing usable is left.
@@ -19,9 +21,10 @@ export function slugify(text: string, maxLength = 64): string {
 
 /** A template id derived from [name] that the API will accept. */
 export function templateIdFor(name: string): string {
-  const slug = slugify(name, 60);
+  const slug = slugify(name, MAX_TEMPLATE_ID_LENGTH);
   if (!slug) return '';
-  return TEMPLATE_ID_PATTERN.test(slug) ? slug : `plan-${slug}`;
+  if (TEMPLATE_ID_PATTERN.test(slug)) return slug;
+  return slugify(`plan-${slug}`, MAX_TEMPLATE_ID_LENGTH);
 }
 
 /**

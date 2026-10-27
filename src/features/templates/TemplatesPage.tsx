@@ -22,6 +22,7 @@ import { Link, useNavigate } from 'react-router';
 import { formatDateTime } from '../../format';
 import { useDeleteTemplate, useReorderTemplates, useTemplates } from './api';
 import { moved } from './moved';
+import { templateEditPath } from './paths';
 import { CATEGORY_COLORS, LEVEL_COLORS, type Template } from './types';
 
 export function TemplatesPage() {
@@ -31,6 +32,9 @@ export function TemplatesPage() {
   const remove = useDeleteTemplate();
   const reorder = useReorderTemplates();
   const ids = templates.data?.map((item) => item.id) ?? [];
+  // Reordering sends every id: wait until the list matches the server.
+  const orderLocked =
+    reorder.isPending || remove.isPending || templates.isFetching;
 
   const move = (index: number, by: -1 | 1) =>
     reorder.mutate(moved(ids, index, by), {
@@ -49,9 +53,7 @@ export function TemplatesPage() {
       dataIndex: 'name',
       render: (name: string, template) => (
         <Space orientation="vertical" size={0}>
-          <Link to={`/templates/${encodeURIComponent(template.id)}`}>
-            {name}
-          </Link>
+          <Link to={templateEditPath(template.id)}>{name}</Link>
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             {template.id}
           </Typography.Text>
@@ -97,7 +99,7 @@ export function TemplatesPage() {
               size="small"
               icon={<ArrowUpOutlined />}
               aria-label={`Move ${template.name} up`}
-              disabled={index === 0 || reorder.isPending}
+              disabled={index === 0 || orderLocked}
               onClick={() => move(index, -1)}
             />
           </Tooltip>
@@ -106,7 +108,7 @@ export function TemplatesPage() {
               size="small"
               icon={<ArrowDownOutlined />}
               aria-label={`Move ${template.name} down`}
-              disabled={index === ids.length - 1 || reorder.isPending}
+              disabled={index === ids.length - 1 || orderLocked}
               onClick={() => move(index, 1)}
             />
           </Tooltip>
@@ -115,9 +117,7 @@ export function TemplatesPage() {
               size="small"
               icon={<EditOutlined />}
               aria-label={`Edit ${template.name}`}
-              onClick={() =>
-                navigate(`/templates/${encodeURIComponent(template.id)}`)
-              }
+              onClick={() => navigate(templateEditPath(template.id))}
             />
           </Tooltip>
           <Popconfirm
