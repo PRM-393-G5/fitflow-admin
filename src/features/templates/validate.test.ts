@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { NEW_EXERCISE, type TemplateFormValues } from './templateForm';
-import { hasErrors, validateExercise, validateTemplate } from './validate';
+import {
+  amountFor,
+  hasErrors,
+  validateExercise,
+  validateTemplate,
+} from './validate';
 
 const valid: TemplateFormValues = {
   id: 'leg-day',
@@ -40,6 +45,12 @@ describe('validateTemplate', () => {
     );
   });
 
+  it('leaves a stored id alone when editing', () => {
+    expect(
+      validateTemplate({ ...valid, id: 'Legacy_ID' }, { isNew: false }).id,
+    ).toBeUndefined();
+  });
+
   it('caps the list at 30 exercises', () => {
     const exercises = Array.from({ length: 31 }, () => valid.exercises[0]);
     expect(validateTemplate({ ...valid, exercises }).exercises).toBe(
@@ -76,5 +87,18 @@ describe('validateExercise', () => {
       sets: '1–20 sets',
       restSeconds: '0–900 s',
     });
+  });
+});
+
+describe('amountFor', () => {
+  it('keeps an amount that fits the new type', () => {
+    expect(amountFor('reps', 45)).toBe(45);
+    expect(amountFor('timed', 10)).toBe(10);
+  });
+
+  it('moves one that does not into range', () => {
+    expect(amountFor('reps', 300)).toBe(200);
+    expect(amountFor('timed', 0)).toBe(1);
+    expect(amountFor('reps', Number.NaN)).toBeNaN();
   });
 });

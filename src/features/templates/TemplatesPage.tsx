@@ -58,26 +58,30 @@ export function TemplatesPage() {
   const templates = useTemplates();
   const remove = useDeleteTemplate();
   const reorder = useReorderTemplates();
+  // The template asked about stays set while the dialog animates out.
   const [deleting, setDeleting] = useState<Template | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const list = templates.data ?? [];
   const ids = list.map((item) => item.id);
   // Reordering sends every id: wait until the list matches the server.
   const orderLocked =
     reorder.isPending || remove.isPending || templates.isFetching;
 
+  // Promises, not mutate callbacks: results are still reported if the
+  // admin has left the page by the time they arrive.
   const move = (index: number, by: -1 | 1) =>
-    reorder.mutate(moved(ids, index, by), {
-      onError: (error) => toast.danger(error.message),
-    });
+    reorder
+      .mutateAsync(moved(ids, index, by))
+      .catch((error: Error) => toast.danger(error.message));
 
   const confirmDelete = () => {
     if (!deleting) return;
     const template = deleting;
-    setDeleting(null);
-    remove.mutate(template.id, {
-      onSuccess: () => toast.success(`Deleted ${template.name}`),
-      onError: (error) => toast.danger(error.message),
-    });
+    setConfirming(false);
+    remove.mutateAsync(template.id).then(
+      () => toast.success(`Deleted ${template.name}`),
+      (error: Error) => toast.danger(error.message),
+    );
   };
 
   return (
@@ -106,6 +110,8 @@ export function TemplatesPage() {
               <div className="flex justify-center py-10">
                 <Spinner aria-label="Loading templates" />
               </div>
+            ) : templates.isError ? (
+              <EmptyRows>The library could not be loaded.</EmptyRows>
             ) : (
               <EmptyRows>No templates yet</EmptyRows>
             )
@@ -113,8 +119,8 @@ export function TemplatesPage() {
           columns={[
             {
               title: '#',
-              className: 'tabular w-12 text-muted',
-              render: (template) => ids.indexOf(template.id) + 1,
+              className: 'tabular-nums w-12 text-muted',
+              render: (_, index) => index + 1,
             },
             {
               title: 'Name',
@@ -152,14 +158,13 @@ export function TemplatesPage() {
             },
             {
               title: 'Last edited',
-              className: 'tabular whitespace-nowrap',
+              className: 'tabular-nums whitespace-nowrap',
               render: (template) =>
                 template.updatedAt ? formatDateTime(template.updatedAt) : '—',
             },
             {
               title: 'Actions',
-              render: (template) => {
-                const index = ids.indexOf(template.id);
+              render: (template, index) => {
                 return (
                   <div className="flex items-center gap-1">
                     <IconAction
@@ -190,7 +195,10 @@ export function TemplatesPage() {
                       tip="Delete"
                       danger
                       isDisabled={orderLocked}
-                      onPress={() => setDeleting(template)}
+                      onPress={() => {
+                        setDeleting(template);
+                        setConfirming(true);
+                      }}
                     >
                       <TrashBin />
                     </IconAction>
@@ -203,8 +211,8 @@ export function TemplatesPage() {
       </Card>
 
       <AlertDialog.Backdrop
-        isOpen={deleting !== null}
-        onOpenChange={(open) => !open && setDeleting(null)}
+        isOpen={confirming}
+        onOpenChange={setConfirming}
         isDismissable
         isKeyboardDismissDisabled={false}
       >
