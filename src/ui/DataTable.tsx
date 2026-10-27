@@ -1,9 +1,9 @@
 import { Table } from '@heroui/react';
-import type { Key, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { EmptyRows } from './feedback';
 
 export interface Column<Row> {
-  /** The header; also the column's key, so unique within a table. */
+  /** The header. */
   title: string;
   render: (row: Row) => ReactNode;
   /** Right-aligned, with tabular figures. */
@@ -25,7 +25,6 @@ export function DataTable<Row>({
   className,
   contentClassName,
   scrollClassName,
-  onRowAction,
   footer,
 }: {
   /** The table's accessible name. */
@@ -40,22 +39,16 @@ export function DataTable<Row>({
   contentClassName?: string;
   /** On the scroll container, e.g. a `max-h-*` that scrolls tall tables. */
   scrollClassName?: string;
-  /** Makes whole rows clickable (links inside still work on their own). */
-  onRowAction?: (key: Key) => void;
   footer?: ReactNode;
 }) {
   return (
     <Table variant="secondary" className={className}>
       <Table.ScrollContainer className={scrollClassName}>
-        <Table.Content
-          aria-label={label}
-          className={contentClassName}
-          onRowAction={onRowAction}
-        >
+        <Table.Content aria-label={label} className={contentClassName}>
           <Table.Header>
             {columns.map((column, index) => (
               <Table.Column
-                key={column.title}
+                key={index}
                 isRowHeader={index === 0}
                 className={column.numeric ? 'text-end' : undefined}
               >
@@ -69,14 +62,10 @@ export function DataTable<Row>({
             }
           >
             {rows.map((row) => (
-              <Table.Row
-                key={rowKey(row)}
-                id={rowKey(row)}
-                className={onRowAction ? 'cursor-pointer' : undefined}
-              >
-                {columns.map((column) => (
+              <Table.Row key={rowKey(row)} id={rowKey(row)}>
+                {columns.map((column, index) => (
                   <Table.Cell
-                    key={column.title}
+                    key={index}
                     className={[
                       column.numeric && 'tabular text-end',
                       column.className,

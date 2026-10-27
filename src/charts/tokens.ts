@@ -1,5 +1,4 @@
 import { useTheme } from '../theme/context';
-import type { ResolvedTheme } from '../theme/mode';
 
 /**
  * Chart colours by role (the dataviz reference palette), one set per
@@ -49,10 +48,9 @@ const DARK: ChartTokens = {
   critical: '#d03b3b',
 };
 
-export const chartTokens = (theme: ResolvedTheme) =>
-  theme === 'dark' ? DARK : LIGHT;
-
-export const useChartTokens = () => chartTokens(useTheme().resolved);
+/** The chart colours for the current theme. */
+export const useChartTokens = () =>
+  useTheme().resolved === 'dark' ? DARK : LIGHT;
 
 const compact = new Intl.NumberFormat('en', {
   notation: 'compact',

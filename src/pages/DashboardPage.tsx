@@ -116,7 +116,7 @@ export function DashboardPage() {
               note="Across all workouts"
             />
           </div>
-          <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
             <StatTile
               label="Form checks"
               icon={<Camera />}
