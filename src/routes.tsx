@@ -35,6 +35,20 @@ export const routes: RouteObject[] = [
         path: 'templates/:id/edit',
         lazy: templateEditor,
       },
+      {
+        path: 'users',
+        lazy: () =>
+          import('./features/users/UsersPage').then((module) => ({
+            Component: module.UsersPage,
+          })),
+      },
+      {
+        path: 'users/:id',
+        lazy: () =>
+          import('./features/users/UserDetailPage').then((module) => ({
+            Component: module.UserDetailPage,
+          })),
+      },
     ],
   },
   { path: '*', element: <Navigate to="/" replace /> },
