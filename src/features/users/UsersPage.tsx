@@ -6,6 +6,7 @@ import { DataTable, type Column } from '../../ui/DataTable';
 import { Dimmed, EmptyRows, Notice } from '../../ui/feedback';
 import { PageHeader } from '../../ui/PageHeader';
 import { Pager } from '../../ui/Pager';
+import { pageCountOf } from '../../ui/pages';
 import { Segmented } from '../../ui/Segmented';
 import { useUsers } from './api';
 import { userPath, type FromList } from './paths';
@@ -20,7 +21,11 @@ export function UsersPage() {
   const query = parseUserQuery(params);
   const users = useUsers(query);
   const listSearch = useLocation().search;
-  const columns = useMemo(() => columnsFor({ listSearch }), [listSearch]);
+  const fromList = useMemo(
+    () => ({ listSearch }) satisfies FromList,
+    [listSearch],
+  );
+  const columns = useMemo(() => columnsFor(fromList), [fromList]);
 
   /** Writes [changes] to the URL; any filter change goes back to page 1. */
   const update = useCallback(
@@ -54,8 +59,14 @@ export function UsersPage() {
     if (query.page > lastPage) update({ page: String(lastPage) });
   }, [total, query.page, query.limit, update]);
 
-  // A failed load for new filters must not show the old rows.
-  const items = users.isError ? [] : (users.data?.items ?? []);
+  // New filters have no data until they load (or fail); a failed
+  // refresh of the same filters keeps the rows it already had.
+  const items = users.data?.items ?? [];
+  const lastPage = users.data
+    ? pageCountOf(users.data.total, query.limit)
+    : query.page;
+  // Past the end: the effect above is already moving to the last page.
+  const pastEnd = query.page > lastPage;
 
   return (
     <>
@@ -92,13 +103,13 @@ export function UsersPage() {
             rows={items}
             rowKey={(user) => user.id}
             rowHref={(user) => userPath(user.id)}
-            rowRouterOptions={() => ({ state: { listSearch } })}
+            rowRouterOptions={() => ({ state: fromList })}
             empty={
-              users.isPending ? (
+              users.isPending || pastEnd ? (
                 <div className="flex justify-center py-10">
                   <Spinner aria-label="Loading users" />
                 </div>
-              ) : users.isError ? (
+              ) : users.isError && !users.data ? (
                 <EmptyRows>The list could not be loaded.</EmptyRows>
               ) : (
                 <EmptyRows>No users match these filters</EmptyRows>
@@ -106,12 +117,11 @@ export function UsersPage() {
             }
             columns={columns}
             footer={
-              users.data &&
-              !users.isError && (
+              users.data && (
                 <div className="flex w-full flex-wrap items-center gap-4">
                   <div className="min-w-0 flex-1">
                     <Pager
-                      page={query.page}
+                      page={Math.min(query.page, lastPage)}
                       pageSize={query.limit}
                       total={users.data.total}
                       onChange={(page) => update({ page: String(page) })}

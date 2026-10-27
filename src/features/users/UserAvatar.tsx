@@ -13,7 +13,10 @@ export function UserAvatar({
   return (
     <Avatar size={size} color="accent" variant="soft">
       {photoUrl && <Avatar.Image src={photoUrl} alt="" />}
-      <Avatar.Fallback>{name.charAt(0).toUpperCase()}</Avatar.Fallback>
+      <Avatar.Fallback>
+        {/* The first character, even one outside the BMP (an emoji). */}
+        {(Array.from(name)[0] ?? '').toUpperCase()}
+      </Avatar.Fallback>
     </Avatar>
   );
 }

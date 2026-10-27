@@ -378,6 +378,37 @@ describe('users', () => {
     );
   });
 
+  it('locks once, however fast the confirm is pressed', async () => {
+    const { calls } = renderApp('/users/u1', {
+      'GET admin/users/u1': () => ({ status: 200, body: aliceDetail }),
+      'PATCH admin/users/u1': () => ({
+        status: 200,
+        body: { ...alice, disabled: true },
+      }),
+    });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /Lock/ }));
+    const confirm = within(await screen.findByRole('alertdialog')).getByRole(
+      'button',
+      { name: 'Lock account' },
+    );
+    await user.dblClick(confirm);
+    expect(await screen.findByText('Locked Alice Nguyen')).toBeVisible();
+    expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(1);
+  });
+
+  it('carries the list filters when a row is clicked', async () => {
+    renderApp('/users?status=active', {
+      'GET admin/users?page=1&limit=20&status=active': () => page([alice]),
+      'GET admin/users/u1': () => ({ status: 200, body: aliceDetail }),
+    });
+    // A cell, not the name link.
+    await userEvent.click(await screen.findByText('12'));
+    expect(
+      await screen.findByRole('link', { name: 'Back to users' }),
+    ).toHaveAttribute('href', '/users?status=active');
+  });
+
   it('says when a user does not exist', async () => {
     renderApp('/users/nope', {
       'GET admin/users/nope': () => ({
