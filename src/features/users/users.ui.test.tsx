@@ -330,6 +330,11 @@ describe('users', () => {
     );
     await user.click(screen.getByRole('button', { name: 'Delete account' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/users'));
+    // Wait for the list to render: navigating back before React commits it
+    // would keep the same user page mounted, with nothing to refetch.
+    expect(
+      await screen.findByText('No users match these filters'),
+    ).toBeVisible();
     await router.navigate('/users/u1');
     expect(await screen.findByText('User not found')).toBeVisible();
   });
