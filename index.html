@@ -7,11 +7,18 @@
     <title>FitFlow Admin</title>
     <script>
       // Apply the saved theme before the first paint (no light flash).
+      // Same rules as loadThemeMode/resolveTheme in src/theme/mode.ts.
       (function () {
-        var saved = localStorage.getItem('fitflow-admin.theme') || 'system';
+        var saved = null;
+        try {
+          saved = localStorage.getItem('fitflow-admin.theme');
+        } catch (e) {
+          // Storage blocked: follow the system.
+        }
         var dark =
           saved === 'dark' ||
-          (saved === 'system' &&
+          (saved !== 'light' &&
+            typeof window.matchMedia === 'function' &&
             window.matchMedia('(prefers-color-scheme: dark)').matches);
         var theme = dark ? 'dark' : 'light';
         document.documentElement.className = theme;

@@ -90,7 +90,7 @@ export function DashboardPage() {
       )}
 
       {!data ? (
-        overview.isPending && <ReportSkeleton />
+        overview.isPending && <ReportSkeleton tileRows={[4, 3]} />
       ) : (
         <Dimmed when={overview.isPlaceholderData}>
           <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">

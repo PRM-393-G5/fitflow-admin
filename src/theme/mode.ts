@@ -1,12 +1,12 @@
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type ResolvedTheme = 'light' | 'dark';
 
-/** Also read by the pre-paint script in index.html. */
-const KEY = 'fitflow-admin.theme';
+/** Also read by the pre-paint script in index.html: keep the two in step. */
+export const THEME_KEY = 'fitflow-admin.theme';
 
 export function loadThemeMode(): ThemeMode {
   try {
-    const saved = localStorage.getItem(KEY);
+    const saved = localStorage.getItem(THEME_KEY);
     if (saved === 'light' || saved === 'dark' || saved === 'system') {
       return saved;
     }
@@ -18,7 +18,7 @@ export function loadThemeMode(): ThemeMode {
 
 export function saveThemeMode(mode: ThemeMode) {
   try {
-    localStorage.setItem(KEY, mode);
+    localStorage.setItem(THEME_KEY, mode);
   } catch {
     // Not persisted; still applied for this visit.
   }

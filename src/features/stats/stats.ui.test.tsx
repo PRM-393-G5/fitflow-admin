@@ -192,4 +192,34 @@ describe('AI usage', () => {
     expect(screen.getByRole('link', { name: 'User 11' })).toBeVisible();
     expect(screen.queryByRole('link', { name: 'User 10' })).toBeNull();
   });
+
+  it('never strands the latest calls on a page that is gone', async () => {
+    const recent = Array.from({ length: 12 }, (_, index) => ({
+      ...aiReport.recent[0],
+      id: `c${index + 1}`,
+      user: {
+        id: `u${index + 1}`,
+        email: `user${index + 1}@example.com`,
+        name: `User ${index + 1}`,
+      },
+    }));
+    renderApp('/ai', {
+      [`GET ${path('ai', 30)}`]: () => ({
+        status: 200,
+        body: { ...aiReport, recent },
+      }),
+      [`GET ${path('ai', 7)}`]: () => ({
+        status: 200,
+        body: { ...aiReport, recent: recent.slice(0, 3) },
+      }),
+    });
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Page 2' }),
+    );
+    expect(await screen.findByText('11–12 of 12 calls')).toBeVisible();
+    await userEvent.click(screen.getByText('Last 7 days'));
+    // Three calls now: they show, on the only page there is.
+    expect(await screen.findByRole('link', { name: 'User 3' })).toBeVisible();
+    expect(screen.queryByText('No AI calls yet')).toBeNull();
+  });
 });

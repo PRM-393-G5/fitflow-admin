@@ -1,5 +1,7 @@
 import {
   Envelope,
+  Eye,
+  EyeSlash,
   LayoutHeaderCellsLarge,
   Lock,
   Persons,
@@ -60,6 +62,7 @@ export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const fromLocation = (location.state as { from?: Location } | null)?.from;
@@ -68,6 +71,16 @@ export function LoginPage() {
     : '/';
 
   if (session) return <Navigate to={from} replace />;
+
+  /** Once a field shows an error, it re-checks as the admin fixes it. */
+  const recheck = (nextEmail: string, nextPassword: string) => {
+    if (!fieldErrors.email && !fieldErrors.password) return;
+    const errors = validate(nextEmail.trim(), nextPassword);
+    setFieldErrors({
+      email: fieldErrors.email && errors.email,
+      password: fieldErrors.password && errors.password,
+    });
+  };
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -160,7 +173,10 @@ export function LoginPage() {
               autoComplete="username"
               autoFocus
               value={email}
-              onChange={setEmail}
+              onChange={(value) => {
+                setEmail(value);
+                recheck(value, password);
+              }}
               isInvalid={Boolean(fieldErrors.email)}
               isDisabled={submitting}
             >
@@ -175,10 +191,13 @@ export function LoginPage() {
             </TextField>
             <TextField
               name="password"
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
               value={password}
-              onChange={setPassword}
+              onChange={(value) => {
+                setPassword(value);
+                recheck(email, value);
+              }}
               isInvalid={Boolean(fieldErrors.password)}
               isDisabled={submitting}
             >
@@ -188,6 +207,20 @@ export function LoginPage() {
                   <Lock className="size-4 text-muted" />
                 </InputGroup.Prefix>
                 <InputGroup.Input />
+                <InputGroup.Suffix className="pe-1">
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="ghost"
+                    aria-label={
+                      showPassword ? 'Hide password' : 'Show password'
+                    }
+                    isDisabled={submitting}
+                    onPress={() => setShowPassword((shown) => !shown)}
+                  >
+                    {showPassword ? <EyeSlash /> : <Eye />}
+                  </Button>
+                </InputGroup.Suffix>
               </InputGroup>
               <FieldError>{fieldErrors.password}</FieldError>
             </TextField>
