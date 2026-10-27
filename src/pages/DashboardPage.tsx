@@ -10,7 +10,7 @@ import { StatTile } from '../charts/StatTile';
 import { CHART, formatCount, formatDay } from '../charts/tokens';
 import { useOverview } from '../features/stats/api';
 import { DailyTable } from '../charts/DailyTable';
-import { useRangeDays } from '../features/stats/range';
+import { DEFAULT_DAYS, useRangeDays } from '../features/stats/range';
 import { RangeFilter } from '../features/stats/RangeFilter';
 import type { DailyActivity } from '../features/stats/types';
 import { formatMinutes } from '../features/users/labels';
@@ -117,7 +117,9 @@ export function DashboardPage() {
                 label="AI calls"
                 value={formatCount(data.ai.calls)}
                 note={
-                  <Link to={`/ai${days === 30 ? '' : `?days=${days}`}`}>
+                  <Link
+                    to={`/ai${days === DEFAULT_DAYS ? '' : `?days=${days}`}`}
+                  >
                     {formatCount(data.ai.errors)} failed · details
                   </Link>
                 }
@@ -136,7 +138,6 @@ export function DashboardPage() {
             <Col xs={24} xl={14}>
               <ChartCard
                 title="Workouts per day"
-                refreshing={overview.isPlaceholderData}
                 chart={
                   <DailyBarChart<DailyActivity>
                     data={data.daily}
@@ -168,7 +169,6 @@ export function DashboardPage() {
             <Col xs={24} xl={10}>
               <ChartCard
                 title="New users per day"
-                refreshing={overview.isPlaceholderData}
                 chart={
                   <DailyBarChart<DailyActivity>
                     data={data.daily}

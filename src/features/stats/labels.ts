@@ -10,7 +10,7 @@ export const FEATURE_LABELS: Record<AiFeature, string> = {
 };
 
 /** The error codes the app shows, explained for the admin. */
-export const ERROR_LABELS: Record<string, string> = {
+const ERROR_LABELS: Record<string, string> = {
   'not-configured': 'No OpenAI key on the server',
   unauthorized: 'OpenAI rejected the key',
   'rate-limited': 'OpenAI rate limit',
@@ -22,3 +22,9 @@ export const ERROR_LABELS: Record<string, string> = {
   'invalid-response': 'Unreadable answer',
   internal: 'API error',
 };
+
+/** The admin's wording for a failure code; a missing code is "Unknown". */
+export const errorLabel = (code: string | null) =>
+  code === null || code === 'unknown'
+    ? 'Unknown error'
+    : (ERROR_LABELS[code] ?? code);

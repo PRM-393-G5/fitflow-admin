@@ -1,7 +1,7 @@
 import { useSearchParams } from 'react-router';
 
 export const RANGE_DAYS = [7, 30, 90] as const;
-const DEFAULT_DAYS = 30;
+export const DEFAULT_DAYS = 30;
 
 /** `?days=` from the URL: one of [RANGE_DAYS], else 30. */
 export function useRangeDays(): [number, (days: number) => void] {
