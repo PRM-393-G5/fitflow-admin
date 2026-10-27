@@ -75,7 +75,8 @@ export function TemplatesPage() {
       .catch((error: Error) => toast.danger(error.message));
 
   const confirmDelete = () => {
-    if (!deleting) return;
+    // Acts once: a second press while the dialog closes does nothing.
+    if (!deleting || !confirming || remove.isPending) return;
     const template = deleting;
     setConfirming(false);
     remove.mutateAsync(template.id).then(

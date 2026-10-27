@@ -9,7 +9,6 @@ import {
 } from '@gravity-ui/icons';
 import {
   Button,
-  Card,
   ComboBox,
   Description,
   FieldError,
@@ -34,11 +33,12 @@ import {
 } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { ApiError } from '../../api/client';
-import { Notice } from '../../ui/feedback';
+import { Gone, Notice } from '../../ui/feedback';
 import { PageHeader } from '../../ui/PageHeader';
 import { SectionCard } from '../../ui/SectionCard';
 import { Segmented } from '../../ui/Segmented';
 import { useSaveTemplate, useTemplate } from './api';
+import { moved } from './moved';
 import { templateIdFor } from './ids';
 import {
   estimateMinutes,
@@ -54,6 +54,9 @@ import {
   amountFor,
   amountRange,
   hasErrors,
+  LIMITS,
+  MAX_MUSCLE_GROUP,
+  MAX_NAME,
   MAX_DESCRIPTION,
   MAX_EXERCISES,
   validateTemplate,
@@ -69,8 +72,14 @@ const EMPTY: TemplateFormValues = {
   exercises: [{ ...NEW_EXERCISE }],
 };
 
-/** An exercise row with a key that stays with it when rows move. */
-type Row = ExerciseFormValues & { key: number };
+/**
+ * An exercise row with a key that stays with it when rows move, and the
+ * amount each type last had, so switching type and back restores it.
+ */
+type Row = ExerciseFormValues & {
+  key: number;
+  amounts?: Partial<Record<ExerciseFormValues['mode'], number>>;
+};
 
 let lastRowKey = 0;
 const withKey = (exercise: ExerciseFormValues): Row => ({
@@ -94,15 +103,12 @@ export function TemplateEditorPage() {
     const notFound =
       existing.error instanceof ApiError && existing.error.status === 404;
     return (
-      <Card className="mx-auto mt-16 max-w-md items-center py-10 text-center">
-        <span className="flex size-12 items-center justify-center rounded-2xl bg-default text-muted">
-          <FileXmark className="size-6" />
-        </span>
-        <h1 className="text-lg font-semibold">
-          {notFound ? 'Template not found' : existing.error.message}
-        </h1>
-        <Link href="/templates">Back to templates</Link>
-      </Card>
+      <Gone
+        icon={<FileXmark />}
+        title={notFound ? 'Template not found' : existing.error.message}
+        backHref="/templates"
+        backLabel="Back to templates"
+      />
     );
   }
   return (
@@ -124,6 +130,8 @@ function EditorSkeleton() {
     </div>
   );
 }
+
+const LIST_ERROR_ID = 'exercise-list-error';
 
 // Module-level: React Aria rebuilds a field's parser when these change.
 const WHOLE = { maximumFractionDigits: 0 };
@@ -154,6 +162,13 @@ function TemplateForm({
   const [submitted, setSubmitted] = useState(false);
   const [focusError, setFocusError] = useState(0);
   const formRef = useRef<HTMLFormElement>(null);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const errors = validateTemplate(values, { isNew });
   const shown = (field: string, error: string | undefined) =>
@@ -171,8 +186,8 @@ function TemplateForm({
       invalid.focus();
     } else {
       // A problem with the list itself: show its banner.
-      form
-        ?.querySelector('[role="alert"]')
+      document
+        .getElementById(LIST_ERROR_ID)
         ?.scrollIntoView({ block: 'center' });
     }
   }, [focusError]);
@@ -212,21 +227,23 @@ function TemplateForm({
       exercises: current.exercises.map((row) => {
         if (row.key !== key) return row;
         const next = { ...row, ...change };
-        // A new type keeps the amount when it fits, else moves it into
-        // range (300 s switched to reps is 200 reps), never out of range.
-        return change.mode
-          ? { ...next, amount: amountFor(change.mode, next.amount) }
-          : next;
+        if (!change.mode || change.mode === row.mode) return next;
+        // A new type gets back the amount it last had; else it keeps the
+        // amount when it fits, or moves it into range (300 s → 200 reps).
+        const amounts = { ...row.amounts, [row.mode]: row.amount };
+        return {
+          ...next,
+          amounts,
+          amount: amounts[change.mode] ?? amountFor(change.mode, row.amount),
+        };
       }),
     }));
   };
   const moveRow = (index: number, by: -1 | 1) =>
-    setValues((current) => {
-      const exercises = [...current.exercises];
-      const [row] = exercises.splice(index, 1);
-      exercises.splice(index + by, 0, row);
-      return { ...current, exercises };
-    });
+    setValues((current) => ({
+      ...current,
+      exercises: moved(current.exercises, index, by),
+    }));
   const removeRow = (key: number) =>
     setValues((current) => ({
       ...current,
@@ -241,16 +258,23 @@ function TemplateForm({
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitted(true);
+    if (save.isPending) return;
     if (hasErrors(errors)) {
       setFocusError((count) => count + 1);
       return;
     }
-    save.mutate(fromFormValues(values), {
-      onSuccess: (saved) => {
+    // A promise, not mutate callbacks: the result is still reported if
+    // the admin has left the page by the time it arrives.
+    save.mutateAsync(fromFormValues(values)).then(
+      (saved) => {
         toast.success(isNew ? `Created ${saved.name}` : `Saved ${saved.name}`);
-        navigate('/templates');
+        if (mounted.current) navigate('/templates');
       },
-    });
+      (error: Error) => {
+        // On the page, the banner shows the error; elsewhere, a toast.
+        if (!mounted.current) toast.danger(error.message);
+      },
+    );
   };
 
   return (
@@ -287,13 +311,15 @@ function TemplateForm({
 
         {save.isError && <Notice status="danger" title={save.error.message} />}
 
-        <div className="flex flex-col gap-4">
+        {/* Nothing in the form reacts while it saves (React Aria fields
+            don't all follow the fieldset's disabled). */}
+        <div className="flex flex-col gap-4" inert={save.isPending}>
           <SectionCard title="Plan">
             <div className="grid gap-4 md:grid-cols-2">
               <TextField
                 value={values.name}
                 onChange={setName}
-                maxLength={80}
+                maxLength={MAX_NAME}
                 isInvalid={Boolean(shown('name', errors.name))}
               >
                 <Label>Name</Label>
@@ -397,7 +423,9 @@ function TemplateForm({
                 />
               ))}
               {submitted && errors.exercises && (
-                <Notice status="danger" title={errors.exercises} />
+                <div id={LIST_ERROR_ID}>
+                  <Notice status="danger" title={errors.exercises} />
+                </div>
               )}
             </div>
           </SectionCard>
@@ -422,7 +450,8 @@ function ChoiceSelect({
     <Select
       variant="secondary"
       value={value}
-      onChange={(next) => onChange(String(next))}
+      // Required: a cleared selection keeps the current choice.
+      onChange={(next) => next !== null && onChange(String(next))}
     >
       <Label>{label}</Label>
       <Select.Trigger>
@@ -524,7 +553,7 @@ function ExerciseRow({
           className="col-span-2 lg:col-span-5"
           value={row.name}
           onChange={(name) => onChange({ name })}
-          maxLength={80}
+          maxLength={MAX_NAME}
           isInvalid={Boolean(error('name'))}
         >
           <RowLabel row={number}>Name</RowLabel>
@@ -541,7 +570,11 @@ function ExerciseRow({
         >
           <RowLabel row={number}>Muscle group</RowLabel>
           <ComboBox.InputGroup>
-            <Input variant="secondary" placeholder="Chest" maxLength={40} />
+            <Input
+              variant="secondary"
+              placeholder="Chest"
+              maxLength={MAX_MUSCLE_GROUP}
+            />
             <ComboBox.Trigger />
           </ComboBox.InputGroup>
           <FieldError>{error('muscleGroup')}</FieldError>
@@ -574,8 +607,7 @@ function ExerciseRow({
           label="Sets"
           row={number}
           value={row.sets}
-          min={1}
-          max={20}
+          limit={LIMITS.sets}
           error={error('sets')}
           onChange={(sets) => onChange({ sets })}
         />
@@ -583,8 +615,7 @@ function ExerciseRow({
           label={timed ? 'Seconds' : 'Reps'}
           row={number}
           value={row.amount}
-          min={amount.min}
-          max={amount.max}
+          limit={amount}
           error={error('amount')}
           onChange={(value) => onChange({ amount: value })}
         />
@@ -592,8 +623,7 @@ function ExerciseRow({
           label="Rest (s)"
           row={number}
           value={row.restSeconds}
-          min={0}
-          max={900}
+          limit={LIMITS.restSeconds}
           error={error('restSeconds')}
           onChange={(restSeconds) => onChange({ restSeconds })}
         />
@@ -601,8 +631,7 @@ function ExerciseRow({
           label="Load (kg)"
           row={number}
           value={row.weightKg}
-          min={0}
-          max={500}
+          limit={LIMITS.weightKg}
           fraction
           error={error('weightKg')}
           onChange={(weightKg) => onChange({ weightKg })}
@@ -616,8 +645,7 @@ function RowNumber({
   label,
   row,
   value,
-  min,
-  max,
+  limit,
   fraction = false,
   error,
   onChange,
@@ -625,9 +653,9 @@ function RowNumber({
   label: string;
   row: number;
   value: number;
-  min: number;
-  max: number;
-  /** Allows decimals (a load), stepping by 0.5; counts are whole. */
+  limit: { min: number; max: number };
+  /** Allows decimals (a load); counts are whole. No `step`: React Aria
+   * would round typed values to it. */
   fraction?: boolean;
   error: string | undefined;
   onChange: (value: number) => void;
@@ -638,10 +666,11 @@ function RowNumber({
       variant="secondary"
       value={value}
       onChange={onChange}
-      minValue={min}
-      maxValue={max}
+      minValue={limit.min}
+      maxValue={limit.max}
       formatOptions={fraction ? FRACTION : WHOLE}
-      step={fraction ? 0.5 : 1}
+      // Scrolling the page past a focused field must not change it.
+      isWheelDisabled
       isInvalid={Boolean(error)}
     >
       <RowLabel row={row}>{label}</RowLabel>

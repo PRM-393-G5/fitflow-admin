@@ -3,6 +3,17 @@ import type { ExerciseFormValues, TemplateFormValues } from './templateForm';
 
 export const MAX_EXERCISES = 30;
 export const MAX_DESCRIPTION = 500;
+export const MAX_NAME = 80;
+export const MAX_MUSCLE_GROUP = 40;
+
+/** The API's limits for an exercise's numbers; the fields use them too. */
+export const LIMITS = {
+  sets: { min: 1, max: 20, message: '1–20 sets' },
+  reps: { min: 1, max: 200, message: '1–200 reps' },
+  timed: { min: 1, max: 3600, message: '1–3600 seconds' },
+  restSeconds: { min: 0, max: 900, message: '0–900 s' },
+  weightKg: { min: 0, max: 500, message: '0–500 kg' },
+} as const;
 
 export type ExerciseErrors = Partial<
   Record<Exclude<keyof ExerciseFormValues, 'id' | 'mode'>, string>
@@ -34,26 +45,32 @@ export function amountFor(mode: ExerciseFormValues['mode'], amount: number) {
 
 /** The amount's range for the row's type, as the API checks it. */
 export const amountRange = (mode: ExerciseFormValues['mode']) =>
-  mode === 'timed'
-    ? { min: 1, max: 3600, message: '1–3600 seconds' }
-    : { min: 1, max: 200, message: '1–200 reps' };
+  mode === 'timed' ? LIMITS.timed : LIMITS.reps;
 
 export function validateExercise(exercise: ExerciseFormValues): ExerciseErrors {
   const errors: ExerciseErrors = {};
   const name = exercise.name.trim();
   if (!name) errors.name = 'Enter a name';
-  else if (name.length > 80) errors.name = 'At most 80 characters';
+  else if (name.length > MAX_NAME) {
+    errors.name = `At most ${MAX_NAME} characters`;
+  }
   const group = exercise.muscleGroup.trim();
   if (!group) errors.muscleGroup = 'Pick a group';
-  else if (group.length > 40) errors.muscleGroup = 'At most 40 characters';
-  if (!isWhole(exercise.sets, 1, 20)) errors.sets = '1–20 sets';
-  const amount = amountRange(exercise.mode);
-  if (!isWhole(exercise.amount, amount.min, amount.max)) {
-    errors.amount = amount.message;
+  else if (group.length > MAX_MUSCLE_GROUP) {
+    errors.muscleGroup = `At most ${MAX_MUSCLE_GROUP} characters`;
   }
-  if (!isWhole(exercise.restSeconds, 0, 900)) errors.restSeconds = '0–900 s';
-  if (!isBetween(exercise.weightKg, 0, 500)) errors.weightKg = '0–500 kg';
-  return errors;
+  const whole = (value: number, limit: (typeof LIMITS)[keyof typeof LIMITS]) =>
+    isWhole(value, limit.min, limit.max) ? undefined : limit.message;
+  errors.sets = whole(exercise.sets, LIMITS.sets);
+  errors.amount = whole(exercise.amount, amountRange(exercise.mode));
+  errors.restSeconds = whole(exercise.restSeconds, LIMITS.restSeconds);
+  if (!isBetween(exercise.weightKg, LIMITS.weightKg.min, LIMITS.weightKg.max)) {
+    errors.weightKg = LIMITS.weightKg.message;
+  }
+  // Only the problems, so an empty object means a valid row.
+  return Object.fromEntries(
+    Object.entries(errors).filter(([, message]) => message),
+  ) as ExerciseErrors;
 }
 
 /**
@@ -69,7 +86,9 @@ export function validateTemplate(
   };
   const name = values.name.trim();
   if (!name) errors.name = 'Enter a name';
-  else if (name.length > 80) errors.name = 'At most 80 characters';
+  else if (name.length > MAX_NAME) {
+    errors.name = `At most ${MAX_NAME} characters`;
+  }
   if (!isNew) {
     // Stored ids are whatever the API accepted; not ours to re-judge.
   } else if (!values.id) errors.id = 'Enter an id';
