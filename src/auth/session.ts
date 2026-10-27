@@ -61,29 +61,52 @@ export function clearSession() {
 
 export interface SessionStore {
   get: () => Session | null;
-  /** Replaces the session (null signs out) and persists the change. */
-  set: (session: Session | null) => void;
+  /** Starts a new session and persists it (other tabs pick it up). */
+  start: (session: Session) => void;
+  /**
+   * Ends the session holding [token] (default: the current one). A stale
+   * token, e.g. from a request sent before a new sign-in, ends nothing.
+   */
+  end: (token?: string) => void;
   subscribe: (listener: () => void) => () => void;
 }
 
 /**
  * The current session, outside React so the API client reads the token
  * the moment it changes (a page querying right after login sends it).
+ * Tabs share it through localStorage: signing in or out in one tab
+ * updates the others.
  */
 export function createSessionStore(initial: Session | null): SessionStore {
   let current = initial;
   const listeners = new Set<() => void>();
+  const update = (session: Session | null) => {
+    if (session?.accessToken === current?.accessToken) return;
+    current = session;
+    for (const listener of listeners) listener();
+  };
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === KEY || event.key === null) update(loadSession());
+  };
   return {
     get: () => current,
-    set(session) {
-      current = session;
-      if (session) saveSession(session);
-      else clearSession();
-      for (const listener of listeners) listener();
+    start(session) {
+      saveSession(session);
+      update(session);
+    },
+    end(token = current?.accessToken) {
+      if (!current || current.accessToken !== token) return;
+      // Another tab may have signed in since: only clear our own token.
+      if (loadSession()?.accessToken === token) clearSession();
+      update(null);
     },
     subscribe(listener) {
+      if (listeners.size === 0) addEventListener('storage', onStorage);
       listeners.add(listener);
-      return () => listeners.delete(listener);
+      return () => {
+        listeners.delete(listener);
+        if (listeners.size === 0) removeEventListener('storage', onStorage);
+      };
     },
   };
 }

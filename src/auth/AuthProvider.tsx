@@ -37,20 +37,25 @@ export function AuthProvider({
   const [store] = useState(() => createSessionStore(loadSession()));
   const session = useSyncExternalStore(store.subscribe, store.get);
 
-  const logout = useCallback(() => {
-    store.set(null);
-    queryClient.clear();
-  }, [store, queryClient]);
+  const endSession = useCallback(
+    (token?: string) => {
+      if (!store.get()) return;
+      store.end(token);
+      if (!store.get()) queryClient.clear();
+    },
+    [store, queryClient],
+  );
+  const logout = useCallback(() => endSession(), [endSession]);
 
   const api = useMemo(
     () =>
       createApiClient({
         baseUrl: API_BASE_URL,
         getToken: () => store.get()?.accessToken ?? null,
-        onUnauthorized: logout,
+        onUnauthorized: endSession,
         fetch: fetchImpl,
       }),
-    [store, logout, fetchImpl],
+    [store, endSession, fetchImpl],
   );
 
   const login = useCallback(
@@ -59,19 +64,23 @@ export function AuthProvider({
         email,
         password,
       });
-      store.set(sessionFromLogin(result));
+      store.start(sessionFromLogin(result));
     },
     [api, store],
   );
 
   useEffect(() => {
     if (!session) return;
-    const timer = setTimeout(
-      logout,
-      Math.min(Math.max(session.expiresAt - Date.now(), 0), MAX_TIMEOUT_MS),
-    );
+    let timer: ReturnType<typeof setTimeout>;
+    // Long waits are split: setTimeout overflows past MAX_TIMEOUT_MS.
+    const check = () => {
+      const left = session.expiresAt - Date.now();
+      if (left <= 0) endSession(session.accessToken);
+      else timer = setTimeout(check, Math.min(left, MAX_TIMEOUT_MS));
+    };
+    check();
     return () => clearTimeout(timer);
-  }, [session, logout]);
+  }, [session, endSession]);
 
   const value = useMemo(
     () => ({ session, api, login, logout }),

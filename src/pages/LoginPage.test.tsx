@@ -56,6 +56,17 @@ describe('login', () => {
     expect(localStorage.getItem('fitflow-admin.session')).toContain('token-1');
   });
 
+  it('returns to the page asked for, query included', async () => {
+    const { router } = renderApp('/?tab=2#top', api);
+    await signIn('boss@example.com', 'secret-pass');
+    expect(await screen.findByText('Welcome, Boss')).toBeVisible();
+    expect(router.state.location).toMatchObject({
+      pathname: '/',
+      search: '?tab=2',
+      hash: '#top',
+    });
+  });
+
   it('explains a wrong password and stays on the page', async () => {
     const { router } = renderApp('/login', api);
     await signIn('boss@example.com', 'wrong-pass');
