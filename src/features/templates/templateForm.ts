@@ -40,7 +40,7 @@ export function toFormValues(template: Template): TemplateFormValues {
     name: template.name,
     category: template.category,
     level: template.level,
-    description: template.description,
+    description: template.description ?? '',
     exercises: template.exercises.map((exercise) => ({
       id: exercise.id,
       name: exercise.name,
@@ -82,7 +82,7 @@ export function fromFormValues(values: TemplateFormValues): TemplateInput {
     name: values.name.trim(),
     category: values.category,
     level: values.level,
-    description: values.description.trim(),
+    description: (values.description ?? '').trim(),
     durationMinutes: estimateMinutes(exercises),
     exercises,
   };

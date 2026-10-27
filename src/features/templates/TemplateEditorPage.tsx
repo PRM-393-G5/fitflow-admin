@@ -55,14 +55,14 @@ const EMPTY: TemplateFormValues = {
 
 const muscleOptions = MUSCLE_GROUPS.map((value) => ({ value }));
 
-/** `/templates/new` creates a template; `/templates/:id` edits one. */
+/** `/templates/new` creates a template; `/templates/:id/edit` edits one. */
 export function TemplateEditorPage() {
   const { id } = useParams();
   const existing = useTemplate(id);
 
-  // Fill the form from the server's current copy, never a cached one that
-  // a refetch could replace after the form has read its initial values
-  // (saving would then overwrite someone else's newer edit).
+  // Fill the form from the server's current copy, not a cached one that a
+  // refetch could replace after the form has read its initial values.
+  // (Two admins editing at once still means last save wins.)
   if (id !== undefined && !existing.isFetchedAfterMount) {
     return <Skeleton active paragraph={{ rows: 8 }} />;
   }
@@ -383,12 +383,17 @@ function ExerciseRow({
             // Re-check the limit when the type switches.
             dependencies={[['exercises', name, 'mode']]}
             rules={[
-              {
-                required: true,
-                type: 'integer',
-                min: 1,
-                max: timed ? 3600 : 200,
-                message: timed ? '1–3600 seconds' : '1–200 reps',
+              // Reads the type when validating, not when this row rendered.
+              ({ getFieldValue }) => {
+                const isTimed =
+                  getFieldValue(['exercises', name, 'mode']) === 'timed';
+                return {
+                  required: true,
+                  type: 'integer',
+                  min: 1,
+                  max: isTimed ? 3600 : 200,
+                  message: isTimed ? '1–3600 seconds' : '1–200 reps',
+                };
               },
             ]}
           >

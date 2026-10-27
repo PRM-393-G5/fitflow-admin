@@ -239,6 +239,22 @@ describe('templates', () => {
     );
   });
 
+  it('checks the amount against the new type when it switches', async () => {
+    const { api } = templatesApi([
+      {
+        ...template('a', 'Alpha'),
+        exercises: [{ ...exercise, reps: 0, durationSeconds: 300 }],
+      },
+    ]);
+    renderApp('/templates/a/edit', api);
+    const user = userEvent.setup();
+    expect(await screen.findByLabelText('Seconds of exercise 1')).toHaveValue(
+      '300',
+    );
+    await user.click(screen.getByText('Reps'));
+    expect(await screen.findByText('1–200 reps')).toBeInTheDocument();
+  });
+
   it('says when a template does not exist', async () => {
     renderApp('/templates/missing/edit', templatesApi([]).api);
     expect(await screen.findByText('Template not found')).toBeVisible();
