@@ -161,6 +161,18 @@ describe('templates', () => {
     });
   });
 
+  it('clears the id error once the name fills the id in', async () => {
+    renderApp('/templates/new', templatesApi([]).api);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Create' }));
+    expect(await screen.findByText('Enter an id')).toBeVisible();
+    await user.type(screen.getByLabelText('Name'), 'Leg Day');
+    expect(screen.getByLabelText('Id')).toHaveValue('leg-day');
+    await waitFor(() =>
+      expect(screen.queryByText('Enter an id')).not.toBeInTheDocument(),
+    );
+  });
+
   it('shows the API refusing a taken id', async () => {
     renderApp('/templates/new', templatesApi([template('alpha', 'Alpha')]).api);
     const user = userEvent.setup();

@@ -60,7 +60,10 @@ export function TemplateEditorPage() {
   const { id } = useParams();
   const existing = useTemplate(id);
 
-  if (id !== undefined && existing.isPending) {
+  // Fill the form from the server's current copy, never a cached one that
+  // a refetch could replace after the form has read its initial values
+  // (saving would then overwrite someone else's newer edit).
+  if (id !== undefined && !existing.isFetchedAfterMount) {
     return <Skeleton active paragraph={{ rows: 8 }} />;
   }
   // A failed background refetch keeps the cached template (and the form).
@@ -102,7 +105,10 @@ function TemplateForm({
   const name = Form.useWatch('name', form);
   useEffect(() => {
     if (isNew && !idTouched.current) {
-      form.setFieldValue('id', templateIdFor(name ?? ''));
+      // setFields (not setFieldValue) also clears a stale "Enter an id".
+      form.setFields([
+        { name: 'id', value: templateIdFor(name ?? ''), errors: [] },
+      ]);
     }
   }, [form, isNew, name]);
 
@@ -201,8 +207,12 @@ function TemplateForm({
             >
               <Input
                 disabled={!isNew}
-                onChange={() => {
-                  idTouched.current = true;
+                onChange={(event) => {
+                  // Emptied: follow the name again.
+                  idTouched.current = event.target.value !== '';
+                  if (!idTouched.current) {
+                    form.setFieldValue('id', templateIdFor(name ?? ''));
+                  }
                 }}
               />
             </Form.Item>
