@@ -1,35 +1,36 @@
 import {
-  ArrowLeftOutlined,
-  DeleteOutlined,
-  LockOutlined,
-  UnlockOutlined,
-} from '@ant-design/icons';
+  ArrowLeft,
+  ChartColumn,
+  Clock,
+  Camera,
+  Flame,
+  Lock,
+  LockOpen,
+  PersonXmark,
+  TrashBin,
+} from '@gravity-ui/icons';
 import {
   Alert,
-  App,
-  Avatar,
+  AlertDialog,
   Button,
   Card,
-  Col,
-  Descriptions,
-  Empty,
+  Chip,
   Input,
-  Modal,
-  Popconfirm,
-  Result,
-  Row,
+  Link,
   Skeleton,
-  Space,
-  Statistic,
-  Table,
-  Tag,
-  Typography,
-} from 'antd';
-import type { ColumnsType } from 'antd/es/table';
-import { useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router';
+  Spinner,
+  TextField,
+  toast,
+} from '@heroui/react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import { ApiError } from '../../api/client';
-import { formatDateTime } from '../../format';
+import { formatDateTime, formatExact } from '../../format';
+import { DataTable } from '../../ui/DataTable';
+import { EmptyRows, Notice } from '../../ui/feedback';
+import { PageHeader } from '../../ui/PageHeader';
+import { SectionCard } from '../../ui/SectionCard';
+import { StatTile } from '../../ui/StatTile';
 import { useDeleteUser, useSetUserLocked, useUser } from './api';
 import {
   activityLabel,
@@ -40,37 +41,67 @@ import {
 } from './labels';
 import { usersListPath } from './paths';
 import { StatusTag } from './StatusTag';
-import type { RecentSession, TrainingProfile, UserDetail } from './types';
+import type { TrainingProfile, UserDetail } from './types';
+import { UserAvatar } from './UserAvatar';
 
 export function UserDetailPage() {
   const { id = '' } = useParams();
   const user = useUser(id);
   const backTo = usersListPath(useLocation().state);
 
-  if (user.isPending) return <Skeleton active paragraph={{ rows: 10 }} />;
+  if (user.isPending) return <DetailSkeleton />;
   const notFound = user.error instanceof ApiError && user.error.status === 404;
   // Gone (e.g. deleted since it was cached): never show the stale copy.
   if (user.isError && (notFound || !user.data)) {
     return (
-      <Result
-        status={notFound ? '404' : 'error'}
-        title={notFound ? 'User not found' : user.error.message}
-        extra={<Link to={backTo}>Back to users</Link>}
-      />
+      <Card className="mx-auto mt-16 max-w-md items-center py-10 text-center">
+        <span className="flex size-12 items-center justify-center rounded-2xl bg-default text-muted">
+          <PersonXmark className="size-6" />
+        </span>
+        <h1 className="text-lg font-semibold">
+          {notFound ? 'User not found' : user.error.message}
+        </h1>
+        {notFound && (
+          <p className="text-sm text-muted">
+            The account may have been deleted.
+          </p>
+        )}
+        <Link href={backTo}>Back to users</Link>
+      </Card>
     );
   }
   return (
     <>
       {user.isError && (
-        <Alert
-          type="warning"
-          showIcon
+        <Notice
+          status="warning"
           title={`Could not refresh this user: ${user.error.message}`}
-          style={{ marginBottom: 16 }}
         />
       )}
-      <UserDetailView user={user.data} backTo={backTo} />
+      {/* Keyed: dialogs opened for one user never act on another. */}
+      <UserDetailView key={user.data.id} user={user.data} backTo={backTo} />
     </>
+  );
+}
+
+function DetailSkeleton() {
+  return (
+    <div role="status" className="flex flex-col gap-4">
+      <span className="sr-only">Loading…</span>
+      <div className="flex items-center gap-4">
+        <Skeleton className="size-12 rounded-full" />
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-6 w-48 rounded-lg" />
+          <Skeleton className="h-4 w-32 rounded-lg" />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        {Array.from({ length: 4 }, (_, index) => (
+          <Skeleton key={index} className="h-32 rounded-3xl" />
+        ))}
+      </div>
+      <Skeleton className="h-72 rounded-3xl" />
+    </div>
   );
 }
 
@@ -81,288 +112,396 @@ function UserDetailView({
   user: UserDetail;
   backTo: string;
 }) {
-  const { message } = App.useApp();
   const navigate = useNavigate();
   const setLocked = useSetUserLocked(user.id);
   const remove = useDeleteUser(user.id);
+  // What the lock dialog does is fixed when it opens, and it acts once:
+  // a second press while it closes can't flip the account back.
+  const [confirmingLock, setConfirmingLock] = useState(false);
+  const [lockTo, setLockTo] = useState(!user.disabled);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const shownName = user.name || user.email;
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
-  const toggleLock = () =>
-    setLocked.mutateAsync(!user.disabled).then(
-      () =>
-        message.success(
-          user.disabled ? `Unlocked ${shownName}` : `Locked ${shownName}`,
-        ),
-      (error: Error) => message.error(error.message),
+  const applyLock = () => {
+    if (!confirmingLock || setLocked.isPending) return;
+    const disabled = lockTo;
+    setConfirmingLock(false);
+    // A promise, not mutate callbacks: the result is still reported if
+    // the admin has left the page by the time it arrives.
+    setLocked.mutateAsync(disabled).then(
+      () => toast.success(`${disabled ? 'Locked' : 'Unlocked'} ${shownName}`),
+      (error: Error) => toast.danger(error.message),
     );
+  };
+
+  const deleteUser = () => {
+    if (remove.isPending) return;
+    remove.mutateAsync().then(
+      () => {
+        toast.success(`Deleted ${shownName}`);
+        if (mounted.current) navigate(backTo, { replace: true });
+      },
+      (error: Error) => {
+        // On the page, the dialog shows the error; elsewhere, a toast.
+        if (!mounted.current) toast.danger(error.message);
+      },
+    );
+  };
 
   return (
     <>
-      <div className="page-header">
-        <Space align="center" size="middle">
-          <Link to={backTo} aria-label="Back to users">
-            <ArrowLeftOutlined />
-          </Link>
-          <Avatar size={48} src={user.photoUrl ?? undefined}>
-            {shownName.charAt(0).toUpperCase()}
-          </Avatar>
-          <div>
-            <Typography.Title level={2} style={{ margin: 0 }}>
-              {shownName} <StatusTag disabled={user.disabled} />
-            </Typography.Title>
-            {user.name && (
-              <Typography.Text type="secondary">{user.email}</Typography.Text>
-            )}
-          </div>
-        </Space>
-        <Space>
-          <Popconfirm
-            title={
-              user.disabled ? 'Unlock this account?' : 'Lock this account?'
-            }
-            description={
-              user.disabled
-                ? 'They can sign in again; their data is unchanged.'
-                : 'They are signed out everywhere and cannot sign in or sync.'
-            }
-            okText={user.disabled ? 'Unlock' : 'Lock'}
-            okButtonProps={{ danger: !user.disabled }}
-            onConfirm={toggleLock}
-          >
-            <Button
-              icon={user.disabled ? <UnlockOutlined /> : <LockOutlined />}
-              loading={setLocked.isPending}
+      <PageHeader
+        leading={
+          <>
+            <Link
+              href={backTo}
+              aria-label="Back to users"
+              className="flex size-10 items-center justify-center rounded-full text-foreground hover:bg-default"
             >
+              <ArrowLeft className="size-4" />
+            </Link>
+            <UserAvatar size="lg" name={shownName} photoUrl={user.photoUrl} />
+          </>
+        }
+        title={
+          <span className="flex min-w-0 flex-wrap items-center gap-3">
+            <span className="min-w-0">{shownName}</span>
+            <StatusTag disabled={user.disabled} size="md" />
+          </span>
+        }
+        description={user.name ? user.email : undefined}
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              isPending={setLocked.isPending}
+              onPress={() => {
+                setLockTo(!user.disabled);
+                setConfirmingLock(true);
+              }}
+            >
+              {setLocked.isPending ? (
+                <Spinner color="current" size="sm" />
+              ) : user.disabled ? (
+                <LockOpen />
+              ) : (
+                <Lock />
+              )}
               {user.disabled ? 'Unlock' : 'Lock'}
             </Button>
-          </Popconfirm>
-          <Button
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => {
-              remove.reset(); // no error left from an earlier attempt
-              setConfirmingDelete(true);
-            }}
-          >
-            Delete
-          </Button>
-        </Space>
-      </div>
+            <Button
+              variant="danger-soft"
+              onPress={() => {
+                remove.reset(); // no error left from an earlier attempt
+                setConfirmingDelete(true);
+              }}
+            >
+              <TrashBin />
+              Delete
+            </Button>
+          </>
+        }
+      />
 
       {user.disabled && (
-        <Alert
-          type="warning"
-          showIcon
+        <Notice
+          status="warning"
           title="This account is locked: the user cannot sign in, sync or use AI."
-          style={{ marginBottom: 16 }}
         />
       )}
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={12} lg={6}>
-          <Card>
-            <Statistic title="Workouts" value={user.counts.sessions} />
-          </Card>
-        </Col>
-        <Col xs={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Training time"
-              value={formatMinutes(user.totals.minutes)}
+      <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+          <StatTile
+            label="Workouts"
+            icon={<Flame />}
+            value={formatExact(user.counts.sessions)}
+          />
+          <StatTile
+            label="Training time"
+            icon={<Clock />}
+            value={formatMinutes(user.totals.minutes)}
+          />
+          <StatTile
+            label="Volume"
+            icon={<ChartColumn />}
+            value={formatKg(user.totals.volumeKg)}
+          />
+          <StatTile
+            label="Form checks"
+            icon={<Camera />}
+            value={formatExact(user.counts.formChecks)}
+          />
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <SectionCard title="Account">
+            <Facts
+              rows={[
+                ['Email', user.email],
+                ['Joined', formatDateTime(user.createdAt)],
+                [
+                  'Last sign-in',
+                  user.lastSignInAt ? formatDateTime(user.lastSignInAt) : '—',
+                ],
+                [
+                  'Last sync',
+                  user.lastSyncAt ? formatDateTime(user.lastSyncAt) : '—',
+                ],
+                ['Custom plans', formatExact(user.counts.workouts)],
+                [
+                  'Weight entries',
+                  `${formatExact(user.counts.weights)}${
+                    user.latestWeightKg === null
+                      ? ''
+                      : ` (latest ${formatKg(user.latestWeightKg)})`
+                  }`,
+                ],
+                ['Meals logged', formatExact(user.counts.meals)],
+              ]}
             />
-          </Card>
-        </Col>
-        <Col xs={12} lg={6}>
-          <Card>
-            <Statistic title="Volume" value={formatKg(user.totals.volumeKg)} />
-          </Card>
-        </Col>
-        <Col xs={12} lg={6}>
-          <Card>
-            <Statistic title="Form checks" value={user.counts.formChecks} />
-          </Card>
-        </Col>
-      </Row>
-
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} lg={12}>
-          <Card title="Account" style={{ height: '100%' }}>
-            <Descriptions column={1} size="small">
-              <Descriptions.Item label="Email">{user.email}</Descriptions.Item>
-              <Descriptions.Item label="Joined">
-                {formatDateTime(user.createdAt)}
-              </Descriptions.Item>
-              <Descriptions.Item label="Last sign-in">
-                {user.lastSignInAt ? formatDateTime(user.lastSignInAt) : '—'}
-              </Descriptions.Item>
-              <Descriptions.Item label="Last sync">
-                {user.lastSyncAt ? formatDateTime(user.lastSyncAt) : '—'}
-              </Descriptions.Item>
-              <Descriptions.Item label="Custom plans">
-                {user.counts.workouts}
-              </Descriptions.Item>
-              <Descriptions.Item label="Weight entries">
-                {user.counts.weights}
-                {user.latestWeightKg !== null &&
-                  ` (latest ${formatKg(user.latestWeightKg)})`}
-              </Descriptions.Item>
-              <Descriptions.Item label="Meals logged">
-                {user.counts.meals}
-              </Descriptions.Item>
-            </Descriptions>
-          </Card>
-        </Col>
-        <Col xs={24} lg={12}>
-          <Card title="Training profile" style={{ height: '100%' }}>
+          </SectionCard>
+          <SectionCard title="Training profile">
             <ProfileDetails profile={user.profile} />
-          </Card>
-        </Col>
-      </Row>
+          </SectionCard>
+        </div>
 
-      <Card title="Recent sessions">
-        <Table<RecentSession>
-          rowKey="id"
-          columns={sessionColumns}
-          dataSource={user.recentSessions}
-          pagination={false}
-          locale={{ emptyText: 'No sessions synced yet' }}
-          scroll={{ x: 640 }}
-        />
-      </Card>
+        <SectionCard title="Recent sessions">
+          <DataTable
+            label="Recent sessions"
+            rows={user.recentSessions}
+            rowKey={(session) => session.id}
+            empty="No sessions synced yet"
+            contentClassName="min-w-[640px]"
+            columns={[
+              {
+                title: 'Workout',
+                render: (session) => (
+                  <span className="flex flex-wrap items-center gap-2">
+                    {session.workoutName ?? 'Workout'}
+                    {session.formCheck && (
+                      <Chip size="sm" color="accent" variant="soft">
+                        <Chip.Label>Form check</Chip.Label>
+                      </Chip>
+                    )}
+                  </span>
+                ),
+              },
+              {
+                title: 'Finished',
+                className: 'tabular-nums whitespace-nowrap',
+                // The phone's local time: shown as is, not converted.
+                render: (session) =>
+                  session.completedAt
+                    ? formatDateTime(session.completedAt)
+                    : '—',
+              },
+              {
+                title: 'Duration',
+                className: 'tabular-nums',
+                render: (session) => formatMinutes(session.minutes),
+              },
+              {
+                title: 'Sets',
+                numeric: true,
+                render: (session) => formatExact(session.completedSets),
+              },
+              {
+                title: 'Volume',
+                numeric: true,
+                render: (session) => formatKg(session.volumeKg),
+              },
+            ]}
+          />
+        </SectionCard>
+      </div>
 
-      <DeleteUserModal
-        open={confirmingDelete}
+      <LockDialog
+        isOpen={confirmingLock}
+        onOpenChange={setConfirmingLock}
+        locked={!lockTo}
+        onConfirm={applyLock}
+      />
+      <DeleteUserDialog
+        isOpen={confirmingDelete}
+        onOpenChange={setConfirmingDelete}
         email={user.email}
         deleting={remove.isPending}
         error={remove.error?.message}
-        onCancel={() => setConfirmingDelete(false)}
-        onConfirm={() =>
-          remove.mutate(undefined, {
-            onSuccess: () => {
-              message.success(`Deleted ${shownName}`);
-              navigate(backTo, { replace: true });
-            },
-          })
-        }
+        onConfirm={deleteUser}
       />
     </>
   );
 }
 
+/** Label–value pairs, two columns. */
+function Facts({ rows }: { rows: Array<[string, ReactNode]> }) {
+  return (
+    <dl className="grid grid-cols-[minmax(7rem,auto)_1fr] gap-x-6 gap-y-3 text-sm">
+      {rows.map(([label, value]) => (
+        <div key={label} className="contents">
+          <dt className="text-muted">{label}</dt>
+          <dd className="min-w-0 break-words">{value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 function ProfileDetails({ profile }: { profile: TrainingProfile | null }) {
   if (!profile) {
-    return (
-      <Empty
-        image={Empty.PRESENTED_IMAGE_SIMPLE}
-        description="Not set up in the app yet"
-      />
-    );
+    return <EmptyRows>Not set up in the app yet</EmptyRows>;
   }
   const show = <T,>(value: T | null, format: (value: T) => string) =>
     value === null ? '—' : format(value);
   return (
-    <Descriptions column={1} size="small">
-      <Descriptions.Item label="Goal">
-        {show(profile.goal, goalLabel)}
-      </Descriptions.Item>
-      <Descriptions.Item label="Level">
-        {show(profile.level, String)}
-      </Descriptions.Item>
-      <Descriptions.Item label="Weekly goal">
-        {show(profile.weeklyGoal, (n) => `${n} workouts`)}
-      </Descriptions.Item>
-      <Descriptions.Item label="Height">
-        {show(profile.heightCm, (n) => `${n} cm`)}
-      </Descriptions.Item>
-      <Descriptions.Item label="Age">
-        {show(profile.age, String)}
-      </Descriptions.Item>
-      <Descriptions.Item label="Sex">
-        {show(profile.isMale, sexLabel)}
-      </Descriptions.Item>
-      <Descriptions.Item label="Activity">
-        {show(profile.activityLevel, activityLabel)}
-      </Descriptions.Item>
-    </Descriptions>
+    <Facts
+      rows={[
+        ['Goal', show(profile.goal, goalLabel)],
+        ['Level', show(profile.level, String)],
+        ['Weekly goal', show(profile.weeklyGoal, (n) => `${n} workouts`)],
+        ['Height', show(profile.heightCm, (n) => `${n} cm`)],
+        ['Age', show(profile.age, String)],
+        ['Sex', show(profile.isMale, sexLabel)],
+        ['Activity', show(profile.activityLevel, activityLabel)],
+      ]}
+    />
   );
 }
 
-const sessionColumns: ColumnsType<RecentSession> = [
-  {
-    title: 'Workout',
-    key: 'workout',
-    render: (_, session) => (
-      <Space>
-        {session.workoutName ?? 'Workout'}
-        {session.formCheck && <Tag color="purple">Form check</Tag>}
-      </Space>
-    ),
-  },
-  {
-    title: 'Finished',
-    dataIndex: 'completedAt',
-    // The phone's local time: shown as is, not converted.
-    render: (at: string | null) => (at ? formatDateTime(at) : '—'),
-  },
-  {
-    title: 'Duration',
-    dataIndex: 'minutes',
-    render: (minutes: number) => formatMinutes(minutes),
-  },
-  { title: 'Sets', dataIndex: 'completedSets', align: 'right' },
-  {
-    title: 'Volume',
-    dataIndex: 'volumeKg',
-    align: 'right',
-    render: (kg: number) => formatKg(kg),
-  },
-];
+function LockDialog({
+  isOpen,
+  onOpenChange,
+  locked,
+  onConfirm,
+}: {
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+  locked: boolean;
+  onConfirm: () => void;
+}) {
+  return (
+    <AlertDialog.Backdrop
+      isOpen={isOpen}
+      onOpenChange={onOpenChange}
+      isDismissable
+      isKeyboardDismissDisabled={false}
+    >
+      <AlertDialog.Container>
+        <AlertDialog.Dialog className="sm:max-w-md">
+          <AlertDialog.Header>
+            <AlertDialog.Icon status={locked ? 'accent' : 'warning'}>
+              {locked ? <LockOpen /> : <Lock />}
+            </AlertDialog.Icon>
+            <AlertDialog.Heading>
+              {locked ? 'Unlock this account?' : 'Lock this account?'}
+            </AlertDialog.Heading>
+          </AlertDialog.Header>
+          <AlertDialog.Body>
+            <p>
+              {locked
+                ? 'They can sign in again; their data is unchanged.'
+                : 'They are signed out everywhere and cannot sign in, sync or use AI until unlocked. Their data is kept.'}
+            </p>
+          </AlertDialog.Body>
+          <AlertDialog.Footer>
+            <Button slot="close" variant="tertiary">
+              Cancel
+            </Button>
+            <Button variant={locked ? 'primary' : 'danger'} onPress={onConfirm}>
+              {locked ? 'Unlock account' : 'Lock account'}
+            </Button>
+          </AlertDialog.Footer>
+        </AlertDialog.Dialog>
+      </AlertDialog.Container>
+    </AlertDialog.Backdrop>
+  );
+}
 
 /** Deleting cannot be undone, so the admin types the email to confirm. */
-function DeleteUserModal({
-  open,
+function DeleteUserDialog({
+  isOpen,
+  onOpenChange,
   email,
   deleting,
   error,
-  onCancel,
   onConfirm,
 }: {
-  open: boolean;
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
   email: string;
   deleting: boolean;
   error: string | undefined;
-  onCancel: () => void;
   onConfirm: () => void;
 }) {
   const [typed, setTyped] = useState('');
   const matches = typed.trim().toLowerCase() === email.toLowerCase();
   return (
-    <Modal
-      open={open}
-      title="Delete this account?"
-      okText="Delete account"
-      okButtonProps={{ danger: true, disabled: !matches, loading: deleting }}
-      onOk={onConfirm}
-      onCancel={onCancel}
-      afterClose={() => setTyped('')}
+    <AlertDialog.Backdrop
+      isOpen={isOpen}
+      onOpenChange={(open) => {
+        if (!open) setTyped('');
+        onOpenChange(open);
+      }}
+      isDismissable={!deleting}
+      isKeyboardDismissDisabled={deleting}
     >
-      <Typography.Paragraph>
-        This permanently deletes the account and everything it synced (workouts,
-        plans, weights, meals). It cannot be undone.
-      </Typography.Paragraph>
-      <Typography.Paragraph>
-        Type <Typography.Text strong>{email}</Typography.Text> to confirm.
-      </Typography.Paragraph>
-      <Input
-        aria-label="Email to confirm"
-        value={typed}
-        onChange={(event) => setTyped(event.target.value)}
-        autoComplete="off"
-      />
-      {error && (
-        <Alert type="error" showIcon title={error} style={{ marginTop: 12 }} />
-      )}
-    </Modal>
+      <AlertDialog.Container>
+        <AlertDialog.Dialog className="sm:max-w-md">
+          <AlertDialog.Header>
+            <AlertDialog.Icon status="danger" />
+            <AlertDialog.Heading>Delete this account?</AlertDialog.Heading>
+          </AlertDialog.Header>
+          <AlertDialog.Body className="flex flex-col gap-4">
+            <p>
+              This permanently deletes the account and everything it synced
+              (workouts, plans, weights, meals). It cannot be undone.
+            </p>
+            <p>
+              Type <strong className="font-semibold">{email}</strong> to
+              confirm.
+            </p>
+            <TextField
+              aria-label="Email to confirm"
+              value={typed}
+              onChange={setTyped}
+              autoComplete="off"
+              isDisabled={deleting}
+            >
+              <Input variant="secondary" placeholder={email} />
+            </TextField>
+            {error && (
+              <Alert status="danger">
+                <Alert.Indicator />
+                <Alert.Content>
+                  <Alert.Title>{error}</Alert.Title>
+                </Alert.Content>
+              </Alert>
+            )}
+          </AlertDialog.Body>
+          <AlertDialog.Footer>
+            <Button slot="close" variant="tertiary" isDisabled={deleting}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              isDisabled={!matches}
+              isPending={deleting}
+              onPress={onConfirm}
+            >
+              {deleting && <Spinner color="current" size="sm" />}
+              Delete account
+            </Button>
+          </AlertDialog.Footer>
+        </AlertDialog.Dialog>
+      </AlertDialog.Container>
+    </AlertDialog.Backdrop>
   );
 }

@@ -1,9 +1,23 @@
-import { Tag } from 'antd';
+import { CircleCheck, Lock } from '@gravity-ui/icons';
+import { Chip } from '@heroui/react';
 
-export function StatusTag({ disabled }: { disabled: boolean }) {
+/** Active or locked, as a coloured chip with an icon and a word. */
+export function StatusTag({
+  disabled,
+  size = 'sm',
+}: {
+  disabled: boolean;
+  size?: 'sm' | 'md';
+}) {
   return disabled ? (
-    <Tag color="red">Locked</Tag>
+    <Chip size={size} color="danger" variant="soft">
+      <Lock className="size-3" />
+      <Chip.Label>Locked</Chip.Label>
+    </Chip>
   ) : (
-    <Tag color="green">Active</Tag>
+    <Chip size={size} color="success" variant="soft">
+      <CircleCheck className="size-3" />
+      <Chip.Label>Active</Chip.Label>
+    </Chip>
   );
 }

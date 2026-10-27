@@ -1,5 +1,6 @@
 import { Table } from '@heroui/react';
 import type { ReactNode } from 'react';
+import type { NavigateOptions } from 'react-router';
 import { EmptyRows } from './feedback';
 
 export interface Column<Row> {
@@ -25,6 +26,8 @@ export function DataTable<Row>({
   className,
   contentClassName,
   scrollClassName,
+  rowHref,
+  rowRouterOptions,
   footer,
 }: {
   /** The table's accessible name. */
@@ -39,6 +42,12 @@ export function DataTable<Row>({
   contentClassName?: string;
   /** On the scroll container, e.g. a `max-h-*` that scrolls tall tables. */
   scrollClassName?: string;
+  /**
+   * Makes each row a link: a click anywhere opens it, and a Ctrl/⌘ click
+   * opens a new tab. (A middle click works on links inside the row.)
+   */
+  rowHref?: (row: Row) => string;
+  rowRouterOptions?: (row: Row) => NavigateOptions;
   footer?: ReactNode;
 }) {
   return (
@@ -62,7 +71,13 @@ export function DataTable<Row>({
             }
           >
             {rows.map((row) => (
-              <Table.Row key={rowKey(row)} id={rowKey(row)}>
+              <Table.Row
+                key={rowKey(row)}
+                id={rowKey(row)}
+                href={rowHref?.(row)}
+                routerOptions={rowRouterOptions?.(row)}
+                className={rowHref ? 'cursor-pointer' : undefined}
+              >
                 {columns.map((column, index) => (
                   <Table.Cell
                     key={index}
