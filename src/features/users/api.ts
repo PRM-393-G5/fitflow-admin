@@ -7,7 +7,6 @@ import {
 import { useApi } from '../../auth/useAuth';
 import type { UserDetail, UserPage, UserQuery, UserSummary } from './types';
 
-const ALL = ['users'] as const;
 const LISTS = ['users', 'list'] as const;
 const pageKey = (query: UserQuery) => [...LISTS, query] as const;
 const detailKey = (id: string) => ['users', 'detail', id] as const;
@@ -51,7 +50,14 @@ export function useSetUserLocked(id: string) {
       api.patch<UserSummary>(`admin/users/${encodeURIComponent(id)}`, {
         disabled,
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ALL }),
+    onSuccess: (summary) => {
+      // The answer carries the new state: no need to reload the user.
+      queryClient.setQueryData<UserDetail>(
+        detailKey(id),
+        (detail) => detail && { ...detail, ...summary },
+      );
+      return queryClient.invalidateQueries({ queryKey: LISTS });
+    },
   });
 }
 
@@ -60,8 +66,15 @@ export function useDeleteUser(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => api.delete(`admin/users/${encodeURIComponent(id)}`),
-    // Only the lists: refetching the open user page would flash a 404
-    // before it navigates away.
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: LISTS }),
+    onSuccess: () => {
+      // Mark the open user stale without refetching it now (that would
+      // flash a 404 before the page navigates away); a later visit
+      // refetches and shows "User not found".
+      void queryClient.invalidateQueries({
+        queryKey: detailKey(id),
+        refetchType: 'none',
+      });
+      return queryClient.invalidateQueries({ queryKey: LISTS });
+    },
   });
 }
