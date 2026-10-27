@@ -1,6 +1,7 @@
 import {
   AppstoreOutlined,
   DashboardOutlined,
+  RobotOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
 import type { ReactNode } from 'react';
@@ -16,6 +17,7 @@ export const NAV_ITEMS: NavItem[] = [
   { path: '/', label: 'Dashboard', icon: <DashboardOutlined /> },
   { path: '/users', label: 'Users', icon: <TeamOutlined /> },
   { path: '/templates', label: 'Templates', icon: <AppstoreOutlined /> },
+  { path: '/ai', label: 'AI usage', icon: <RobotOutlined /> },
 ];
 
 /** The nav item whose section contains [pathname] (`/users/1` → `/users`). */
