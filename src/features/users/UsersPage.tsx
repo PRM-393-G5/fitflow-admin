@@ -7,15 +7,15 @@ import {
   Segmented,
   Space,
   Table,
-  Tag,
   Typography,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { formatDateTime } from '../../format';
 import { useUsers } from './api';
-import { userPath } from './paths';
+import { userPath, type FromList } from './paths';
+import { StatusTag } from './StatusTag';
 import { parseUserQuery } from './query';
 import type { UserStatus, UserSummary } from './types';
 
@@ -27,6 +27,15 @@ export function UsersPage() {
   const query = parseUserQuery(params);
   const users = useUsers(query);
   const [search, setSearch] = useState(query.search);
+  // Back, or the sidebar link, can change the URL's search: follow it
+  // (adjusting state during render, as React recommends).
+  const [searchFrom, setSearchFrom] = useState(query.search);
+  if (query.search !== searchFrom) {
+    setSearchFrom(query.search);
+    setSearch(query.search);
+  }
+  const listSearch = useLocation().search;
+  const columns = useMemo(() => columnsFor(listSearch), [listSearch]);
 
   /** Writes [changes] to the URL; any filter change goes back to page 1. */
   const update = useCallback(
@@ -47,6 +56,15 @@ export function UsersPage() {
     [setParams],
   );
 
+  // A page past the end (after deletions, or an old bookmark): go to the
+  // last one.
+  const total = users.isPlaceholderData ? undefined : users.data?.total;
+  useEffect(() => {
+    if (total === undefined) return;
+    const lastPage = Math.max(1, Math.ceil(total / query.limit));
+    if (query.page > lastPage) update({ page: String(lastPage) });
+  }, [total, query.page, query.limit, update]);
+
   // Search as the admin types, once they pause.
   useEffect(() => {
     if (search.trim() === query.search) return;
@@ -56,49 +74,6 @@ export function UsersPage() {
     );
     return () => clearTimeout(timer);
   }, [search, query.search, update]);
-
-  const columns: ColumnsType<UserSummary> = [
-    {
-      title: 'User',
-      key: 'user',
-      render: (_, user) => (
-        <Space>
-          <Avatar src={user.photoUrl ?? undefined}>
-            {(user.name || user.email).charAt(0).toUpperCase()}
-          </Avatar>
-          <Space orientation="vertical" size={0}>
-            <Link to={userPath(user.id)}>{user.name || user.email}</Link>
-            {user.name && (
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                {user.email}
-              </Typography.Text>
-            )}
-          </Space>
-        </Space>
-      ),
-    },
-    {
-      title: 'Status',
-      dataIndex: 'disabled',
-      render: (disabled: boolean) =>
-        disabled ? (
-          <Tag color="red">Locked</Tag>
-        ) : (
-          <Tag color="green">Active</Tag>
-        ),
-    },
-    { title: 'Workouts', dataIndex: 'sessionCount', align: 'right' },
-    {
-      title: 'Joined',
-      dataIndex: 'createdAt',
-      render: (createdAt: string) => formatDateTime(createdAt),
-    },
-    {
-      title: 'Last sign-in',
-      dataIndex: 'lastSignInAt',
-      render: (at: string | null) => (at ? formatDateTime(at) : '—'),
-    },
-  ];
 
   return (
     <>
@@ -151,7 +126,9 @@ export function UsersPage() {
             onClick: (event) => {
               // Links inside the row navigate on their own.
               if ((event.target as HTMLElement).closest('a')) return;
-              navigate(userPath(user.id));
+              navigate(userPath(user.id), {
+                state: { listSearch } satisfies FromList,
+              });
             },
             style: { cursor: 'pointer' },
           })}
@@ -170,4 +147,50 @@ export function UsersPage() {
       </Card>
     </>
   );
+}
+
+/** The table's columns; links carry [listSearch] to the user's page. */
+function columnsFor(listSearch: string): ColumnsType<UserSummary> {
+  return [
+    {
+      title: 'User',
+      key: 'user',
+      render: (_, user) => (
+        <Space>
+          <Avatar src={user.photoUrl ?? undefined}>
+            {(user.name || user.email).charAt(0).toUpperCase()}
+          </Avatar>
+          <Space orientation="vertical" size={0}>
+            <Link
+              to={userPath(user.id)}
+              state={{ listSearch } satisfies FromList}
+            >
+              {user.name || user.email}
+            </Link>
+            {user.name && (
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                {user.email}
+              </Typography.Text>
+            )}
+          </Space>
+        </Space>
+      ),
+    },
+    {
+      title: 'Status',
+      dataIndex: 'disabled',
+      render: (disabled: boolean) => <StatusTag disabled={disabled} />,
+    },
+    { title: 'Workouts', dataIndex: 'sessionCount', align: 'right' },
+    {
+      title: 'Joined',
+      dataIndex: 'createdAt',
+      render: (createdAt: string) => formatDateTime(createdAt),
+    },
+    {
+      title: 'Last sign-in',
+      dataIndex: 'lastSignInAt',
+      render: (at: string | null) => (at ? formatDateTime(at) : '—'),
+    },
+  ];
 }

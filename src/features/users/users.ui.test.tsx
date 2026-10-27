@@ -110,6 +110,37 @@ describe('users', () => {
     expect(router.state.location.search).toBe('?q=alice&status=locked');
   });
 
+  it('clears the search box when the URL loses its search', async () => {
+    const { router } = renderApp('/users?q=alice', {
+      'GET admin/users?page=1&limit=20&search=alice': () => page([alice]),
+      'GET admin/users?page=1&limit=20': () => page([alice, bob]),
+    });
+    const box = await screen.findByLabelText('Search users');
+    expect(box).toHaveValue('alice');
+    await router.navigate('/users');
+    await waitFor(() => expect(box).toHaveValue(''));
+    // The debounce must not write the old search back.
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(router.state.location.search).toBe('');
+    expect(
+      await screen.findByRole('link', { name: 'bob@example.com' }),
+    ).toBeVisible();
+  });
+
+  it('goes back to the last page when the asked one is past the end', async () => {
+    const { router } = renderApp('/users?page=3', {
+      'GET admin/users?page=3&limit=20': () => ({
+        status: 200,
+        body: { items: [], total: 1, page: 3, limit: 20 },
+      }),
+      'GET admin/users?page=1&limit=20': () => page([alice]),
+    });
+    await waitFor(() => expect(router.state.location.search).toBe(''));
+    expect(
+      await screen.findByRole('link', { name: 'Alice Nguyen' }),
+    ).toBeVisible();
+  });
+
   it('opens a user from the list', async () => {
     const { router } = renderApp('/users', {
       'GET admin/users?page=1&limit=20': () => page([alice]),
@@ -166,12 +197,13 @@ describe('users', () => {
   });
 
   it('deletes an account only once the email is typed', async () => {
-    const { router, calls } = renderApp('/users/u1', {
+    const { router, calls } = renderApp('/users?status=active', {
+      'GET admin/users?page=1&limit=20&status=active': () => page([alice]),
       'GET admin/users/u1': () => ({ status: 200, body: aliceDetail }),
       'DELETE admin/users/u1': () => ({ status: 204 }),
-      'GET admin/users?page=1&limit=20': () => page([]),
     });
     const user = userEvent.setup();
+    await user.click(await screen.findByRole('link', { name: 'Alice Nguyen' }));
     await user.click(await screen.findByRole('button', { name: /Delete/ }));
     const confirm = await screen.findByRole('button', {
       name: 'Delete account',
@@ -183,8 +215,18 @@ describe('users', () => {
     );
     expect(confirm).toBeEnabled();
     await user.click(confirm);
-    await waitFor(() => expect(router.state.location.pathname).toBe('/users'));
+    // Back to the list it came from, filters included.
+    await waitFor(() =>
+      expect(router.state.location).toMatchObject({
+        pathname: '/users',
+        search: '?status=active',
+      }),
+    );
     expect(calls.some((call) => call.method === 'DELETE')).toBe(true);
+    // The deleted user's page was not refetched (no 404 flash).
+    expect(calls.filter((call) => call.path === 'admin/users/u1')).toHaveLength(
+      2,
+    );
   });
 
   it('says when a user does not exist', async () => {

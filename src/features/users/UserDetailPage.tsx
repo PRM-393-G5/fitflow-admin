@@ -27,7 +27,7 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { ApiError } from '../../api/client';
 import { formatDateTime } from '../../format';
 import { useDeleteUser, useSetUserLocked, useUser } from './api';
@@ -38,11 +38,14 @@ import {
   goalLabel,
   sexLabel,
 } from './labels';
+import { usersListPath } from './paths';
+import { StatusTag } from './StatusTag';
 import type { RecentSession, TrainingProfile, UserDetail } from './types';
 
 export function UserDetailPage() {
   const { id = '' } = useParams();
   const user = useUser(id);
+  const backTo = usersListPath(useLocation().state);
 
   if (user.isPending) return <Skeleton active paragraph={{ rows: 10 }} />;
   if (user.isError && !user.data) {
@@ -52,14 +55,32 @@ export function UserDetailPage() {
       <Result
         status={notFound ? '404' : 'error'}
         title={notFound ? 'User not found' : user.error.message}
-        extra={<Link to="/users">Back to users</Link>}
+        extra={<Link to={backTo}>Back to users</Link>}
       />
     );
   }
-  return <UserDetailView user={user.data} />;
+  return (
+    <>
+      {user.isError && (
+        <Alert
+          type="warning"
+          showIcon
+          title={`Could not refresh this user: ${user.error.message}`}
+          style={{ marginBottom: 16 }}
+        />
+      )}
+      <UserDetailView user={user.data} backTo={backTo} />
+    </>
+  );
 }
 
-function UserDetailView({ user }: { user: UserDetail }) {
+function UserDetailView({
+  user,
+  backTo,
+}: {
+  user: UserDetail;
+  backTo: string;
+}) {
   const { message } = App.useApp();
   const navigate = useNavigate();
   const setLocked = useSetUserLocked(user.id);
@@ -80,7 +101,7 @@ function UserDetailView({ user }: { user: UserDetail }) {
     <>
       <div className="page-header">
         <Space align="center" size="middle">
-          <Link to="/users" aria-label="Back to users">
+          <Link to={backTo} aria-label="Back to users">
             <ArrowLeftOutlined />
           </Link>
           <Avatar size={48} src={user.photoUrl ?? undefined}>
@@ -88,12 +109,7 @@ function UserDetailView({ user }: { user: UserDetail }) {
           </Avatar>
           <div>
             <Typography.Title level={2} style={{ margin: 0 }}>
-              {shownName}{' '}
-              {user.disabled ? (
-                <Tag color="red">Locked</Tag>
-              ) : (
-                <Tag color="green">Active</Tag>
-              )}
+              {shownName} <StatusTag disabled={user.disabled} />
             </Typography.Title>
             {user.name && (
               <Typography.Text type="secondary">{user.email}</Typography.Text>
@@ -124,7 +140,10 @@ function UserDetailView({ user }: { user: UserDetail }) {
           <Button
             danger
             icon={<DeleteOutlined />}
-            onClick={() => setConfirmingDelete(true)}
+            onClick={() => {
+              remove.reset(); // no error left from an earlier attempt
+              setConfirmingDelete(true);
+            }}
           >
             Delete
           </Button>
@@ -222,7 +241,7 @@ function UserDetailView({ user }: { user: UserDetail }) {
           remove.mutate(undefined, {
             onSuccess: () => {
               message.success(`Deleted ${shownName}`);
-              navigate('/users', { replace: true });
+              navigate(backTo, { replace: true });
             },
           })
         }
