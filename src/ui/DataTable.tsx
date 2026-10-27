@@ -6,11 +6,14 @@ import { EmptyRows } from './feedback';
 export interface Column<Row> {
   /** The header. */
   title: string;
-  render: (row: Row) => ReactNode;
+  /** [index] is the row's position in [rows]. */
+  render: (row: Row, index: number) => ReactNode;
   /** Right-aligned, with tabular-nums figures. */
   numeric?: boolean;
   /** Extra classes for the column's cells. */
   className?: string;
+  /** Names the row for screen readers; defaults to the first column. */
+  rowHeader?: boolean;
 }
 
 /**
@@ -50,6 +53,10 @@ export function DataTable<Row>({
   rowRouterOptions?: (row: Row) => NavigateOptions;
   footer?: ReactNode;
 }) {
+  const headerIndex = Math.max(
+    0,
+    columns.findIndex((column) => column.rowHeader),
+  );
   return (
     <Table variant="secondary" className={className}>
       <Table.ScrollContainer className={scrollClassName}>
@@ -58,7 +65,7 @@ export function DataTable<Row>({
             {columns.map((column, index) => (
               <Table.Column
                 key={index}
-                isRowHeader={index === 0}
+                isRowHeader={index === headerIndex}
                 className={column.numeric ? 'text-end' : undefined}
               >
                 {column.title}
@@ -70,7 +77,7 @@ export function DataTable<Row>({
               typeof empty === 'string' ? <EmptyRows>{empty}</EmptyRows> : empty
             }
           >
-            {rows.map((row) => (
+            {rows.map((row, rowIndex) => (
               <Table.Row
                 key={rowKey(row)}
                 id={rowKey(row)}
@@ -88,7 +95,7 @@ export function DataTable<Row>({
                       .filter(Boolean)
                       .join(' ')}
                   >
-                    {column.render(row)}
+                    {column.render(row, rowIndex)}
                   </Table.Cell>
                 ))}
               </Table.Row>

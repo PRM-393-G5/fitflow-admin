@@ -3,7 +3,7 @@ import { toast } from '@heroui/react';
 import { cleanup, configure } from '@testing-library/react';
 import { afterEach } from 'vitest';
 
-// CI runners are slower than a laptop: lazy routes, antd and the search
+// CI runners are slower than a laptop: lazy routes and the search
 // debounce together can take longer than the 1 s default to settle.
 configure({ asyncUtilTimeout: 5000 });
 
@@ -15,7 +15,7 @@ afterEach(() => {
   toast.clear();
 });
 
-// jsdom lacks the browser APIs antd's responsive components use.
+// jsdom lacks matchMedia (the system theme) and ResizeObserver (charts).
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: (query: string) => ({
@@ -36,3 +36,6 @@ class ResizeObserverStub {
   disconnect() {}
 }
 globalThis.ResizeObserver ??= ResizeObserverStub;
+
+// jsdom lays nothing out, so it has no scrolling either.
+Element.prototype.scrollIntoView ??= () => {};
