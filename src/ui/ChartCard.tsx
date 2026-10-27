@@ -1,5 +1,6 @@
-import { Card, Segmented } from 'antd';
 import { useState, type ReactNode } from 'react';
+import { SectionCard } from './SectionCard';
+import { Segmented } from './Segmented';
 
 /**
  * A chart with its table twin (the accessible view of the same numbers).
@@ -7,31 +8,33 @@ import { useState, type ReactNode } from 'react';
  */
 export function ChartCard({
   title,
+  description,
   chart,
   table,
 }: {
   title: string;
+  description?: string;
   chart: ReactNode;
   table: ReactNode;
 }) {
   const [view, setView] = useState<'chart' | 'table'>('chart');
   return (
-    <Card
+    <SectionCard
       title={title}
-      extra={
+      description={description}
+      actions={
         <Segmented
-          size="small"
+          ariaLabel={`${title}: view`}
           value={view}
           onChange={setView}
-          aria-label={`${title}: view`}
           options={[
-            { label: 'Chart', value: 'chart' },
-            { label: 'Table', value: 'table' },
+            { value: 'chart', label: 'Chart' },
+            { value: 'table', label: 'Table' },
           ]}
         />
       }
     >
       {view === 'chart' ? chart : table}
-    </Card>
+    </SectionCard>
   );
 }
