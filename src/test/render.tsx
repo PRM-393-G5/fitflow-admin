@@ -50,3 +50,21 @@ export function renderApp(path: string, api: FakeApi = {}) {
   );
   return { ...view, router, calls: fetch.calls };
 }
+
+export const TEST_ADMIN = {
+  id: 'a1',
+  email: 'boss@example.com',
+  name: 'Boss',
+};
+
+/** Starts the test signed in as [TEST_ADMIN]. */
+export function signIn() {
+  localStorage.setItem(
+    'fitflow-admin.session',
+    JSON.stringify({
+      accessToken: 'token-1',
+      expiresAt: Date.now() + 60 * 60_000,
+      admin: TEST_ADMIN,
+    }),
+  );
+}

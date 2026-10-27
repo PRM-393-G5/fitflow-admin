@@ -55,3 +55,24 @@ body {
 .admin-content {
   padding: 24px;
 }
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.page-header h2 {
+  margin-bottom: 4px;
+}
+
+.exercise-row {
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.exercise-row:last-of-type {
+  border-bottom: none;
+}
