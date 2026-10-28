@@ -8,6 +8,11 @@ to the [FitFlow API](https://github.com/PRM-393-G5/fitflow-api) through its
 ## Features
 
 - **Sign-in** with an admin account (email + password).
+- **Users**: everyone who signed in to the app, searchable by email or
+  name and filterable by status (filters live in the URL). A user's page
+  shows their synced profile, workout totals, data counts and recent
+  sessions, and lets the admin lock/unlock the account (signs it out
+  everywhere) or delete it with all its data (type the email to confirm).
 - **Workout templates**: the public library every FitFlow user sees. List
   in display order, move templates up or down, create, edit and delete.
   The form follows the app's rules (levels, categories, reps or timed
