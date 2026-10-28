@@ -8,7 +8,8 @@ import { useApi } from '../../auth/useAuth';
 import type { UserDetail, UserPage, UserQuery, UserSummary } from './types';
 
 const ALL = ['users'] as const;
-const pageKey = (query: UserQuery) => ['users', 'list', query] as const;
+const LISTS = ['users', 'list'] as const;
+const pageKey = (query: UserQuery) => [...LISTS, query] as const;
 const detailKey = (id: string) => ['users', 'detail', id] as const;
 
 /** `?search=&status=&page=&limit=` for the list route. */
@@ -59,9 +60,8 @@ export function useDeleteUser(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => api.delete(`admin/users/${encodeURIComponent(id)}`),
-    onSuccess: () => {
-      queryClient.removeQueries({ queryKey: detailKey(id) });
-      return queryClient.invalidateQueries({ queryKey: ALL });
-    },
+    // Only the lists: refetching the open user page would flash a 404
+    // before it navigates away.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: LISTS }),
   });
 }

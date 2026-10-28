@@ -12,6 +12,7 @@ export const goalLabel = (goal: string) => GOALS[goal] ?? goal;
 
 export function activityLabel(level: number | string): string {
   if (typeof level === 'string') return level;
+  if (!Number.isFinite(level)) return '—';
   const index = Math.min(Math.max(Math.round(level), 0), 4);
   return ACTIVITY_LEVELS[index];
 }
