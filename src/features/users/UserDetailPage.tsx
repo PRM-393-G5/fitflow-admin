@@ -48,9 +48,9 @@ export function UserDetailPage() {
   const backTo = usersListPath(useLocation().state);
 
   if (user.isPending) return <Skeleton active paragraph={{ rows: 10 }} />;
-  if (user.isError && !user.data) {
-    const notFound =
-      user.error instanceof ApiError && user.error.status === 404;
+  const notFound = user.error instanceof ApiError && user.error.status === 404;
+  // Gone (e.g. deleted since it was cached): never show the stale copy.
+  if (user.isError && (notFound || !user.data)) {
     return (
       <Result
         status={notFound ? '404' : 'error'}

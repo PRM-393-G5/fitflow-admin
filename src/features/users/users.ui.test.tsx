@@ -127,6 +127,23 @@ describe('users', () => {
     ).toBeVisible();
   });
 
+  it('keeps a space being typed when the search reaches the URL', async () => {
+    const { router } = renderApp('/users', {
+      'GET admin/users?page=1&limit=20': () => page([alice, bob]),
+      'GET admin/users?page=1&limit=20&search=alice': () => page([alice]),
+      'GET admin/users?page=1&limit=20&search=alice+n': () => page([alice]),
+    });
+    const user = userEvent.setup();
+    const box = await screen.findByLabelText('Search users');
+    await user.type(box, 'alice ');
+    await waitFor(() => expect(router.state.location.search).toBe('?q=alice'));
+    expect(box).toHaveValue('alice ');
+    await user.type(box, 'n');
+    await waitFor(() =>
+      expect(router.state.location.search).toBe('?q=alice+n'),
+    );
+  });
+
   it('goes back to the last page when the asked one is past the end', async () => {
     const { router } = renderApp('/users?page=3', {
       'GET admin/users?page=3&limit=20': () => ({
@@ -227,6 +244,31 @@ describe('users', () => {
     expect(calls.filter((call) => call.path === 'admin/users/u1')).toHaveLength(
       2,
     );
+  });
+
+  it('shows "User not found" for a deleted user, even from cache', async () => {
+    let deleted = false;
+    const { router } = renderApp('/users/u1', {
+      'GET admin/users/u1': () =>
+        deleted
+          ? { status: 404, body: { message: 'User u1 not found' } }
+          : { status: 200, body: aliceDetail },
+      'DELETE admin/users/u1': () => {
+        deleted = true;
+        return { status: 204 };
+      },
+      'GET admin/users?page=1&limit=20': () => page([]),
+    });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /Delete/ }));
+    await user.type(
+      await screen.findByLabelText('Email to confirm'),
+      'alice@example.com',
+    );
+    await user.click(screen.getByRole('button', { name: 'Delete account' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/users'));
+    await router.navigate('/users/u1');
+    expect(await screen.findByText('User not found')).toBeVisible();
   });
 
   it('says when a user does not exist', async () => {

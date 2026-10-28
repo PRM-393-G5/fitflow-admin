@@ -16,7 +16,7 @@ import { formatDateTime } from '../../format';
 import { useUsers } from './api';
 import { userPath, type FromList } from './paths';
 import { StatusTag } from './StatusTag';
-import { parseUserQuery } from './query';
+import { DEFAULT_LIMIT, PAGE_SIZES, parseUserQuery } from './query';
 import type { UserStatus, UserSummary } from './types';
 
 const SEARCH_DELAY_MS = 300;
@@ -32,7 +32,8 @@ export function UsersPage() {
   const [searchFrom, setSearchFrom] = useState(query.search);
   if (query.search !== searchFrom) {
     setSearchFrom(query.search);
-    setSearch(query.search);
+    // Our own debounce wrote it: keep the box as typed (spaces included).
+    if (search.trim() !== query.search) setSearch(query.search);
   }
   const listSearch = useLocation().search;
   const columns = useMemo(() => columnsFor(listSearch), [listSearch]);
@@ -44,7 +45,10 @@ export function UsersPage() {
         (current) => {
           const next = new URLSearchParams(current);
           for (const [key, value] of Object.entries(changes)) {
-            const isDefault = !value || (key === 'page' && value === '1');
+            const isDefault =
+              !value ||
+              (key === 'page' && value === '1') ||
+              (key === 'limit' && value === String(DEFAULT_LIMIT));
             if (isDefault) next.delete(key);
             else next.set(key, value);
           }
@@ -120,12 +124,15 @@ export function UsersPage() {
         <Table<UserSummary>
           rowKey="id"
           columns={columns}
-          dataSource={users.data?.items}
+          // A failed load for new filters must not show the old rows.
+          dataSource={users.isError ? [] : users.data?.items}
           loading={users.isFetching}
           onRow={(user) => ({
             onClick: (event) => {
-              // Links inside the row navigate on their own.
+              // Links inside the row navigate on their own, and a
+              // modified click (new tab/window) belongs to the name link.
               if ((event.target as HTMLElement).closest('a')) return;
+              if (event.ctrlKey || event.metaKey || event.shiftKey) return;
               navigate(userPath(user.id), {
                 state: { listSearch } satisfies FromList,
               });
@@ -137,7 +144,7 @@ export function UsersPage() {
             pageSize: query.limit,
             total: users.data?.total ?? 0,
             showSizeChanger: true,
-            pageSizeOptions: [10, 20, 50, 100],
+            pageSizeOptions: PAGE_SIZES,
             showTotal: (total) => `${total} users`,
             onChange: (page, limit) =>
               update({ page: String(page), limit: String(limit) }),
