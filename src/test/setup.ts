@@ -1,6 +1,10 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { afterEach } from 'vitest';
+
+// CI runners are slower than a laptop: lazy routes, antd and the search
+// debounce together can take longer than the 1 s default to settle.
+configure({ asyncUtilTimeout: 5000 });
 
 afterEach(() => {
   cleanup();
