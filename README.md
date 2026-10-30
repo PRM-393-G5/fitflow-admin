@@ -8,6 +8,13 @@ to the [FitFlow API](https://github.com/PRM-393-G5/fitflow-api) through its
 ## Features
 
 - **Sign-in** with an admin account (email + password).
+- **Dashboard**: users (total, new, locked, active), workouts, training
+  time, form checks, AI calls and templates for the last 7, 30 or 90
+  days, with workouts and new users per day. Days are the admin's
+  (browser time zone); every chart has a table view.
+- **AI usage**: calls, failures (by cause), signed-in users and average
+  duration, calls per day and per feature, the top users and the latest
+  calls. Prompts, photos and answers are never stored by the API.
 - **Users**: everyone who signed in to the app, searchable by email or
   name and filterable by status (filters live in the URL). A user's page
   shows their synced profile, workout totals, data counts and recent

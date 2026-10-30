@@ -43,6 +43,13 @@ export const routes: RouteObject[] = [
           })),
       },
       {
+        path: 'ai',
+        lazy: () =>
+          import('./features/stats/AiUsagePage').then((module) => ({
+            Component: module.AiUsagePage,
+          })),
+      },
+      {
         path: 'users/:id',
         lazy: () =>
           import('./features/users/UserDetailPage').then((module) => ({
