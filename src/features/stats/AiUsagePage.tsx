@@ -10,7 +10,7 @@ import { formatDateTime } from '../../format';
 import { DailyTable } from '../../charts/DailyTable';
 import { userPath } from '../users/paths';
 import { useAiUsage } from './api';
-import { ERROR_LABELS, FEATURE_LABELS } from './labels';
+import { errorLabel, FEATURE_LABELS } from './labels';
 import { RangeFilter } from './RangeFilter';
 import { useRangeDays } from './range';
 import type { AiFeature, AiUsageReport, AiUsageUser } from './types';
@@ -71,23 +71,18 @@ export function AiUsagePage() {
             transition: 'opacity 0.2s',
           }}
         >
-          <AiUsageContent data={data} refreshing={report.isPlaceholderData} />
+          <AiUsageContent data={data} />
         </div>
       )}
     </>
   );
 }
 
-function AiUsageContent({
-  data,
-  refreshing,
-}: {
-  data: AiUsageReport;
-  refreshing: boolean;
-}) {
+function AiUsageContent({ data }: { data: AiUsageReport }) {
   const { totals } = data;
-  const failedShare =
-    totals.calls > 0 ? Math.round((totals.errors / totals.calls) * 100) : 0;
+  const share = totals.calls > 0 ? (totals.errors / totals.calls) * 100 : 0;
+  // A real but tiny share is "<1%", never a misleading "0%".
+  const failedShare = share > 0 && share < 1 ? '<1' : String(Math.round(share));
   const daily = data.daily.map((day) => ({
     date: day.date,
     succeeded: day.calls - day.errors,
@@ -139,7 +134,6 @@ function AiUsageContent({
         <Col xs={24} xl={14}>
           <ChartCard
             title="Calls per day"
-            refreshing={refreshing}
             chart={
               <DailyBarChart
                 data={daily}
@@ -168,7 +162,6 @@ function AiUsageContent({
         <Col xs={24} xl={10}>
           <ChartCard
             title="Calls by feature"
-            refreshing={refreshing}
             chart={
               byFeature.length > 0 ? (
                 <HorizontalBarChart data={byFeature} valueLabel="Calls" />
@@ -196,12 +189,14 @@ function AiUsageContent({
                     dataIndex: 'calls',
                     align: 'right',
                     className: 'tabular',
+                    render: formatCount,
                   },
                   {
                     title: 'Failed',
                     dataIndex: 'errors',
                     align: 'right',
                     className: 'tabular',
+                    render: formatCount,
                   },
                   {
                     title: 'Avg',
@@ -256,7 +251,7 @@ function AiUsageContent({
                   dataIndex: 'code',
                   render: (code: string) => (
                     <>
-                      {ERROR_LABELS[code] ?? code}{' '}
+                      {errorLabel(code)}{' '}
                       <Typography.Text type="secondary">
                         ({code})
                       </Typography.Text>
@@ -275,7 +270,7 @@ function AiUsageContent({
         </Col>
       </Row>
 
-      <Card title="Latest calls">
+      <Card title="Latest calls (any date)">
         <Table
           size="small"
           rowKey="id"
@@ -308,7 +303,7 @@ function AiUsageContent({
                   <Tag color="green">OK</Tag>
                 ) : (
                   <Tag icon={<CloseCircleFilled />} color="red">
-                    {ERROR_LABELS[call.errorCode ?? ''] ?? call.errorCode}
+                    {errorLabel(call.errorCode)}
                   </Tag>
                 ),
             },
