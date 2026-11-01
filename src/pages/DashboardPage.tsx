@@ -14,10 +14,10 @@ import { displayName } from '../auth/session';
 import { useApi, useAuth } from '../auth/useAuth';
 import { DailyBarChart } from '../charts/DailyBarChart';
 import { DailyTable } from '../charts/DailyTable';
-import { formatCount, formatDay, useChartTokens } from '../charts/tokens';
+import { formatCount, useChartTokens } from '../charts/tokens';
 import { useOverview } from '../features/stats/api';
 import { DEFAULT_DAYS, useRangeDays } from '../features/stats/range';
-import { RangeFilter } from '../features/stats/RangeFilter';
+import { RangeBar } from '../features/stats/RangeBar';
 import type { DailyActivity } from '../features/stats/types';
 import { formatMinutes } from '../features/users/labels';
 import { ChartCard } from '../ui/ChartCard';
@@ -75,15 +75,12 @@ export function DashboardPage() {
         actions={<ApiStatus />}
       />
 
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <RangeFilter days={days} onChange={setDays} />
-        {data && (
-          <span className="text-sm text-muted">
-            {formatDay(data.range.from)} – {formatDay(data.range.to)} ·{' '}
-            {data.range.tz}
-          </span>
-        )}
-      </div>
+      <RangeBar
+        days={days}
+        onChange={setDays}
+        range={data?.range}
+        isStale={overview.isPlaceholderData}
+      />
 
       {overview.isError && (
         <Notice status="danger" title={overview.error.message} />

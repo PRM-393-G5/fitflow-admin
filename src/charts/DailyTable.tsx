@@ -16,7 +16,8 @@ export function DailyTable<Row extends { date: string }>({
       label={label}
       rows={[...rows].reverse()}
       rowKey={(row) => row.date}
-      scrollClassName="max-h-80 overflow-y-auto"
+      // Tall ranges scroll under a header that stays put.
+      scrollClassName="max-h-80 overflow-y-auto [&_th]:sticky [&_th]:top-0 [&_th]:z-10"
       empty="No days in this range"
       columns={[
         { title: 'Day', render: (row) => formatDay(row.date) },

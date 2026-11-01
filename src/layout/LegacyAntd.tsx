@@ -17,7 +17,7 @@ export function LegacyAntd() {
         token: {
           colorPrimary: BRAND_COLOR,
           colorBgContainer: dark ? '#18181b' : '#ffffff',
-          fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
+          fontFamily: "'Inter Variable', ui-sans-serif, system-ui, sans-serif",
         },
       }}
     >

@@ -16,7 +16,7 @@ import { StatTile } from '../../ui/StatTile';
 import { userPath } from '../users/paths';
 import { useAiUsage } from './api';
 import { errorLabel, FEATURE_LABELS } from './labels';
-import { RangeFilter } from './RangeFilter';
+import { RangeBar } from './RangeBar';
 import { useRangeDays } from './range';
 import type { AiFeature, AiUsageReport, AiUsageUser } from './types';
 
@@ -44,15 +44,12 @@ export function AiUsagePage() {
         description="Calls to the AI features, by feature, day and user. Prompts, photos and answers are never stored."
       />
 
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <RangeFilter days={days} onChange={setDays} />
-        {data && (
-          <span className="text-sm text-muted">
-            {formatDay(data.range.from)} – {formatDay(data.range.to)} ·{' '}
-            {data.range.tz}
-          </span>
-        )}
-      </div>
+      <RangeBar
+        days={days}
+        onChange={setDays}
+        range={data?.range}
+        isStale={report.isPlaceholderData}
+      />
 
       {report.isError && (
         <Notice status="danger" title={report.error.message} />
@@ -68,7 +65,8 @@ export function AiUsagePage() {
         report.isPending && <ReportSkeleton />
       ) : (
         <Dimmed when={report.isPlaceholderData}>
-          <AiUsageContent data={data} />
+          {/* A new range starts the latest calls again from page 1. */}
+          <AiUsageContent key={data.range.days} data={data} />
         </Dimmed>
       )}
     </>

@@ -23,7 +23,8 @@ import { LOGO_URL } from '../theme/brand';
 import { ThemeCycleButton } from '../theme/ThemeSwitch';
 import { loginErrorMessage } from './loginErrorMessage';
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** One @, no spaces or list separators, dot-separated domain labels. */
+const EMAIL = /^[^\s@,;]+@[^\s@,;.]+(?:\.[^\s@,;.]+)*\.[a-z]{2,}$/i;
 
 const HIGHLIGHTS = [
   {
@@ -87,9 +88,9 @@ export function LoginPage() {
     const trimmed = email.trim();
     const errors = validate(trimmed, password);
     setFieldErrors(errors);
+    setError(null);
     if (errors.email || errors.password) return;
     setSubmitting(true);
-    setError(null);
     try {
       // Signed in: this page re-renders into <Navigate to={from} />.
       await login(trimmed, password);
