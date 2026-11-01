@@ -10,7 +10,7 @@ import {
   type BarShapeProps,
 } from 'recharts';
 import { ChartTooltip } from './ChartTooltip';
-import { CHART, formatDay, formatTick } from './tokens';
+import { formatDay, formatTick, useChartTokens } from './tokens';
 
 export interface DailySeries<Row> {
   key: keyof Row & string;
@@ -33,6 +33,7 @@ export function DailyBarChart<Row extends { date: string }>({
   series: DailySeries<Row>[];
   height?: number;
 }) {
+  const CHART = useChartTokens();
   const stacked = series.length > 1;
   /** Whether series [index] is the visible top of the column for [row]. */
   const isTop = (row: Row, index: number) =>
@@ -40,13 +41,13 @@ export function DailyBarChart<Row extends { date: string }>({
       .slice(index + 1)
       .every((above) => !Number(row[above.key as keyof Row]));
   return (
-    <figure className="chart-figure">
+    <figure className="m-0">
       {stacked && (
-        <figcaption className="chart-legend">
+        <figcaption className="mb-3 flex flex-wrap gap-4 text-sm text-muted">
           {series.map((item) => (
-            <span key={item.key} className="chart-legend-item">
+            <span key={item.key} className="inline-flex items-center gap-1.5">
               <span
-                className="chart-legend-swatch"
+                className="size-2.5 rounded-sm"
                 style={{ backgroundColor: item.color }}
               />
               {item.label}
@@ -79,7 +80,7 @@ export function DailyBarChart<Row extends { date: string }>({
             width={40}
           />
           <Tooltip
-            cursor={{ fill: CHART.grid, fillOpacity: 0.5 }}
+            cursor={{ fill: CHART.cursor }}
             content={({ active, payload, label }) =>
               active && payload?.length ? (
                 <ChartTooltip

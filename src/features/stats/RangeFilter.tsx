@@ -1,4 +1,4 @@
-import { Segmented } from 'antd';
+import { Segmented } from '../../ui/Segmented';
 import { RANGE_DAYS } from './range';
 
 /** The one filter row: it scopes every number and chart below it. */
@@ -11,12 +11,13 @@ export function RangeFilter({
 }) {
   return (
     <Segmented<number>
+      ariaLabel="Date range"
+      size="md"
       value={days}
       onChange={onChange}
-      aria-label="Date range"
       options={RANGE_DAYS.map((value) => ({
-        label: `Last ${value} days`,
         value,
+        label: `Last ${value} days`,
       }))}
     />
   );

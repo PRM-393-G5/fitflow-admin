@@ -1,22 +1,58 @@
+import { useTheme } from '../theme/context';
+import type { ResolvedTheme } from '../theme/mode';
+
 /**
- * Chart colours by role (the dataviz reference palette, light mode; the
- * admin web has no dark theme). Validated with the palette script: slots
- * 1–2 and slot 1 + critical clear every CVD and contrast check.
+ * Chart colours by role (the dataviz reference palette), one set per
+ * theme: the dark steps are chosen for the dark surface, not inverted.
+ * Validated on HeroUI's surfaces: slots 1–2 and slot 1 + critical clear
+ * every CVD, lightness and contrast check in both themes.
  */
-export const CHART = {
-  surface: '#fcfcfb',
-  inkPrimary: '#0b0b0b',
-  inkSecondary: '#52514e',
-  inkMuted: '#898781',
-  grid: '#e1e0d9',
-  axis: '#c3c2b7',
+export interface ChartTokens {
+  surface: string;
+  inkPrimary: string;
+  inkSecondary: string;
+  inkMuted: string;
+  grid: string;
+  axis: string;
+  cursor: string;
   /** Categorical slot 1 (blue). */
-  series1: '#2a78d6',
+  series1: string;
   /** Categorical slot 2 (orange). */
-  series2: '#eb6834',
+  series2: string;
   /** Status: critical — only for failures, always labelled. */
+  critical: string;
+}
+
+const LIGHT: ChartTokens = {
+  surface: '#ffffff',
+  inkPrimary: '#18181b',
+  inkSecondary: '#52525b',
+  inkMuted: '#71717a',
+  grid: '#e4e4e7',
+  axis: '#d4d4d8',
+  cursor: 'rgba(24, 24, 27, 0.05)',
+  series1: '#2a78d6',
+  series2: '#eb6834',
   critical: '#d03b3b',
-} as const;
+};
+
+const DARK: ChartTokens = {
+  surface: '#18181b',
+  inkPrimary: '#f4f4f5',
+  inkSecondary: '#d4d4d8',
+  inkMuted: '#a1a1aa',
+  grid: '#27272a',
+  axis: '#3f3f46',
+  cursor: 'rgba(255, 255, 255, 0.06)',
+  series1: '#3987e5',
+  series2: '#d95926',
+  critical: '#d03b3b',
+};
+
+export const chartTokens = (theme: ResolvedTheme) =>
+  theme === 'dark' ? DARK : LIGHT;
+
+export const useChartTokens = () => chartTokens(useTheme().resolved);
 
 const compact = new Intl.NumberFormat('en', {
   notation: 'compact',

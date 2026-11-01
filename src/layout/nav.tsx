@@ -1,23 +1,23 @@
 import {
-  AppstoreOutlined,
-  DashboardOutlined,
-  RobotOutlined,
-  TeamOutlined,
-} from '@ant-design/icons';
-import type { ReactNode } from 'react';
+  House,
+  LayoutHeaderCellsLarge,
+  Persons,
+  Sparkles,
+} from '@gravity-ui/icons';
+import type { ComponentType, SVGProps } from 'react';
 
 interface NavItem {
   path: string;
   label: string;
-  icon: ReactNode;
+  icon: ComponentType<SVGProps<SVGSVGElement>>;
 }
 
 /** The sidebar; each feature adds its page here. */
 export const NAV_ITEMS: NavItem[] = [
-  { path: '/', label: 'Dashboard', icon: <DashboardOutlined /> },
-  { path: '/users', label: 'Users', icon: <TeamOutlined /> },
-  { path: '/templates', label: 'Templates', icon: <AppstoreOutlined /> },
-  { path: '/ai', label: 'AI usage', icon: <RobotOutlined /> },
+  { path: '/', label: 'Dashboard', icon: House },
+  { path: '/users', label: 'Users', icon: Persons },
+  { path: '/templates', label: 'Templates', icon: LayoutHeaderCellsLarge },
+  { path: '/ai', label: 'AI usage', icon: Sparkles },
 ];
 
 /** The nav item whose section contains [pathname] (`/users/1` → `/users`). */
