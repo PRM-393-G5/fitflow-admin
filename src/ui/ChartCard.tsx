@@ -1,5 +1,5 @@
-import { Card } from '@heroui/react';
 import { useState, type ReactNode } from 'react';
+import { SectionCard } from './SectionCard';
 import { Segmented } from './Segmented';
 
 /**
@@ -19,12 +19,10 @@ export function ChartCard({
 }) {
   const [view, setView] = useState<'chart' | 'table'>('chart');
   return (
-    <Card className="h-full">
-      <Card.Header className="flex-row flex-wrap items-start justify-between gap-3">
-        <div>
-          <Card.Title>{title}</Card.Title>
-          {description && <Card.Description>{description}</Card.Description>}
-        </div>
+    <SectionCard
+      title={title}
+      description={description}
+      actions={
         <Segmented
           ariaLabel={`${title}: view`}
           value={view}
@@ -34,8 +32,9 @@ export function ChartCard({
             { value: 'table', label: 'Table' },
           ]}
         />
-      </Card.Header>
-      <Card.Content>{view === 'chart' ? chart : table}</Card.Content>
-    </Card>
+      }
+    >
+      {view === 'chart' ? chart : table}
+    </SectionCard>
   );
 }

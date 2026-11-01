@@ -1,15 +1,17 @@
 import { CircleXmark, Persons, Sparkles, Stopwatch } from '@gravity-ui/icons';
-import { Card, Chip, Link, Table } from '@heroui/react';
-import { useState, type ReactNode } from 'react';
+import { Chip, Link } from '@heroui/react';
+import { useState } from 'react';
 import { DailyBarChart } from '../../charts/DailyBarChart';
 import { DailyTable } from '../../charts/DailyTable';
 import { HorizontalBarChart } from '../../charts/HorizontalBarChart';
 import { formatCount, formatDay, useChartTokens } from '../../charts/tokens';
 import { formatDateTime } from '../../format';
 import { ChartCard } from '../../ui/ChartCard';
+import { DataTable } from '../../ui/DataTable';
 import { Dimmed, EmptyRows, Notice, ReportSkeleton } from '../../ui/feedback';
 import { PageHeader } from '../../ui/PageHeader';
 import { Pager } from '../../ui/Pager';
+import { SectionCard } from '../../ui/SectionCard';
 import { StatTile } from '../../ui/StatTile';
 import { userPath } from '../users/paths';
 import { useAiUsage } from './api';
@@ -28,27 +30,6 @@ function UserCell({ user }: { user: AiUsageUser | null }) {
     return <span className="text-muted">Deleted account</span>;
   }
   return <Link href={userPath(user.id)}>{user.name || user.email}</Link>;
-}
-
-/** A titled card around one table. */
-function TableCard({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description?: string;
-  children: ReactNode;
-}) {
-  return (
-    <Card className="h-full">
-      <Card.Header>
-        <Card.Title className="text-base font-semibold">{title}</Card.Title>
-        {description && <Card.Description>{description}</Card.Description>}
-      </Card.Header>
-      <Card.Content>{children}</Card.Content>
-    </Card>
-  );
 }
 
 export function AiUsagePage() {
@@ -110,9 +91,15 @@ function AiUsageContent({ data }: { data: AiUsageReport }) {
     label: featureLabel(row.feature),
     value: row.calls,
   }));
+  // A refetch can return fewer calls than the page being shown.
+  const pageCount = Math.max(
+    1,
+    Math.ceil(data.recent.length / RECENT_PAGE_SIZE),
+  );
+  const shownPage = Math.min(page, pageCount);
   const recent = data.recent.slice(
-    (page - 1) * RECENT_PAGE_SIZE,
-    page * RECENT_PAGE_SIZE,
+    (shownPage - 1) * RECENT_PAGE_SIZE,
+    shownPage * RECENT_PAGE_SIZE,
   );
 
   return (
@@ -192,162 +179,132 @@ function AiUsageContent({ data }: { data: AiUsageReport }) {
               )
             }
             table={
-              <Table variant="secondary">
-                <Table.ScrollContainer>
-                  <Table.Content aria-label="Calls by feature">
-                    <Table.Header>
-                      <Table.Column isRowHeader>Feature</Table.Column>
-                      <Table.Column className="text-end">Calls</Table.Column>
-                      <Table.Column className="text-end">Failed</Table.Column>
-                      <Table.Column className="text-end">Avg</Table.Column>
-                    </Table.Header>
-                    <Table.Body
-                      renderEmptyState={() => (
-                        <EmptyRows>No AI calls in this range.</EmptyRows>
-                      )}
-                    >
-                      {data.byFeature.map((row) => (
-                        <Table.Row key={row.feature} id={row.feature}>
-                          <Table.Cell>{featureLabel(row.feature)}</Table.Cell>
-                          <Table.Cell className="tabular text-end">
-                            {formatCount(row.calls)}
-                          </Table.Cell>
-                          <Table.Cell className="tabular text-end">
-                            {formatCount(row.errors)}
-                          </Table.Cell>
-                          <Table.Cell className="tabular text-end">
-                            {seconds(row.avgDurationMs)}
-                          </Table.Cell>
-                        </Table.Row>
-                      ))}
-                    </Table.Body>
-                  </Table.Content>
-                </Table.ScrollContainer>
-              </Table>
+              <DataTable
+                label="Calls by feature"
+                rows={data.byFeature}
+                rowKey={(row) => row.feature}
+                empty="No AI calls in this range."
+                columns={[
+                  {
+                    title: 'Feature',
+                    render: (row) => featureLabel(row.feature),
+                  },
+                  {
+                    title: 'Calls',
+                    numeric: true,
+                    render: (row) => formatCount(row.calls),
+                  },
+                  {
+                    title: 'Failed',
+                    numeric: true,
+                    render: (row) => formatCount(row.errors),
+                  },
+                  {
+                    title: 'Avg',
+                    numeric: true,
+                    render: (row) => seconds(row.avgDurationMs),
+                  },
+                ]}
+              />
             }
           />
         </div>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <TableCard title="Top users" description="Most calls in this range">
-          <Table variant="secondary">
-            <Table.ScrollContainer>
-              <Table.Content aria-label="Top users">
-                <Table.Header>
-                  <Table.Column isRowHeader>User</Table.Column>
-                  <Table.Column className="text-end">Calls</Table.Column>
-                </Table.Header>
-                <Table.Body
-                  renderEmptyState={() => (
-                    <EmptyRows>No signed-in calls in this range</EmptyRows>
-                  )}
-                >
-                  {data.topUsers.map((row) => (
-                    <Table.Row key={row.id} id={row.id}>
-                      <Table.Cell>
-                        <UserCell user={row} />
-                      </Table.Cell>
-                      <Table.Cell className="tabular text-end">
-                        {formatCount(row.calls)}
-                      </Table.Cell>
-                    </Table.Row>
-                  ))}
-                </Table.Body>
-              </Table.Content>
-            </Table.ScrollContainer>
-          </Table>
-        </TableCard>
-        <TableCard title="Failures by cause" description="Why calls failed">
-          <Table variant="secondary">
-            <Table.ScrollContainer>
-              <Table.Content aria-label="Failures by cause">
-                <Table.Header>
-                  <Table.Column isRowHeader>Cause</Table.Column>
-                  <Table.Column className="text-end">Calls</Table.Column>
-                </Table.Header>
-                <Table.Body
-                  renderEmptyState={() => (
-                    <EmptyRows>No failed calls in this range</EmptyRows>
-                  )}
-                >
-                  {data.errorsByCode.map((row) => (
-                    <Table.Row key={row.code} id={row.code}>
-                      <Table.Cell>
-                        {errorLabel(row.code)}{' '}
-                        <span className="text-muted">({row.code})</span>
-                      </Table.Cell>
-                      <Table.Cell className="tabular text-end">
-                        {formatCount(row.count)}
-                      </Table.Cell>
-                    </Table.Row>
-                  ))}
-                </Table.Body>
-              </Table.Content>
-            </Table.ScrollContainer>
-          </Table>
-        </TableCard>
+        <SectionCard title="Top users" description="Most calls in this range">
+          <DataTable
+            label="Top users"
+            rows={data.topUsers}
+            rowKey={(row) => row.id}
+            empty="No signed-in calls in this range"
+            columns={[
+              { title: 'User', render: (row) => <UserCell user={row} /> },
+              {
+                title: 'Calls',
+                numeric: true,
+                render: (row) => formatCount(row.calls),
+              },
+            ]}
+          />
+        </SectionCard>
+        <SectionCard title="Failures by cause" description="Why calls failed">
+          <DataTable
+            label="Failures by cause"
+            rows={data.errorsByCode}
+            rowKey={(row) => row.code}
+            empty="No failed calls in this range"
+            columns={[
+              {
+                title: 'Cause',
+                render: (row) => (
+                  <>
+                    {errorLabel(row.code)}{' '}
+                    <span className="text-muted">({row.code})</span>
+                  </>
+                ),
+              },
+              {
+                title: 'Calls',
+                numeric: true,
+                render: (row) => formatCount(row.count),
+              },
+            ]}
+          />
+        </SectionCard>
       </div>
 
-      <TableCard
+      <SectionCard
         title="Latest calls"
         description="The newest calls, whatever the range"
       >
-        <Table variant="secondary">
-          <Table.ScrollContainer>
-            <Table.Content aria-label="Latest calls" className="min-w-[720px]">
-              <Table.Header>
-                <Table.Column isRowHeader>When</Table.Column>
-                <Table.Column>Feature</Table.Column>
-                <Table.Column>User</Table.Column>
-                <Table.Column>Result</Table.Column>
-                <Table.Column className="text-end">Duration</Table.Column>
-              </Table.Header>
-              <Table.Body
-                renderEmptyState={() => <EmptyRows>No AI calls yet</EmptyRows>}
-              >
-                {recent.map((call) => (
-                  <Table.Row key={call.id} id={call.id}>
-                    <Table.Cell className="tabular whitespace-nowrap">
-                      {formatDateTime(call.createdAt)}
-                    </Table.Cell>
-                    <Table.Cell>{featureLabel(call.feature)}</Table.Cell>
-                    <Table.Cell>
-                      <UserCell user={call.user} />
-                    </Table.Cell>
-                    <Table.Cell>
-                      {call.ok ? (
-                        <Chip size="sm" color="success" variant="soft">
-                          <Chip.Label>OK</Chip.Label>
-                        </Chip>
-                      ) : (
-                        <Chip size="sm" color="danger" variant="soft">
-                          <CircleXmark className="size-3.5" />
-                          <Chip.Label>{errorLabel(call.errorCode)}</Chip.Label>
-                        </Chip>
-                      )}
-                    </Table.Cell>
-                    <Table.Cell className="tabular text-end">
-                      {seconds(call.durationMs)}
-                    </Table.Cell>
-                  </Table.Row>
-                ))}
-              </Table.Body>
-            </Table.Content>
-          </Table.ScrollContainer>
-          {data.recent.length > RECENT_PAGE_SIZE && (
-            <Table.Footer>
+        <DataTable
+          label="Latest calls"
+          rows={recent}
+          rowKey={(call) => call.id}
+          empty="No AI calls yet"
+          contentClassName="min-w-[720px]"
+          columns={[
+            {
+              title: 'When',
+              className: 'tabular whitespace-nowrap',
+              render: (call) => formatDateTime(call.createdAt),
+            },
+            { title: 'Feature', render: (call) => featureLabel(call.feature) },
+            { title: 'User', render: (call) => <UserCell user={call.user} /> },
+            {
+              title: 'Result',
+              render: (call) =>
+                call.ok ? (
+                  <Chip size="sm" color="success" variant="soft">
+                    <Chip.Label>OK</Chip.Label>
+                  </Chip>
+                ) : (
+                  <Chip size="sm" color="danger" variant="soft">
+                    <CircleXmark className="size-3.5" />
+                    <Chip.Label>{errorLabel(call.errorCode)}</Chip.Label>
+                  </Chip>
+                ),
+            },
+            {
+              title: 'Duration',
+              numeric: true,
+              render: (call) => seconds(call.durationMs),
+            },
+          ]}
+          footer={
+            pageCount > 1 && (
               <Pager
-                page={page}
+                page={shownPage}
                 pageSize={RECENT_PAGE_SIZE}
                 total={data.recent.length}
                 onChange={setPage}
                 noun="calls"
               />
-            </Table.Footer>
-          )}
-        </Table>
-      </TableCard>
+            )
+          }
+        />
+      </SectionCard>
     </>
   );
 }

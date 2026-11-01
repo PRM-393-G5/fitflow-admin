@@ -1,0 +1,98 @@
+import { Table } from '@heroui/react';
+import type { Key, ReactNode } from 'react';
+import { EmptyRows } from './feedback';
+
+export interface Column<Row> {
+  /** The header; also the column's key, so unique within a table. */
+  title: string;
+  render: (row: Row) => ReactNode;
+  /** Right-aligned, with tabular figures. */
+  numeric?: boolean;
+  /** Extra classes for the column's cells. */
+  className?: string;
+}
+
+/**
+ * Rows under a header, the first column naming each row. A table inside
+ * a card: no outer frame, a rounded header strip and row dividers.
+ */
+export function DataTable<Row>({
+  label,
+  rows,
+  rowKey,
+  columns,
+  empty,
+  className,
+  contentClassName,
+  scrollClassName,
+  onRowAction,
+  footer,
+}: {
+  /** The table's accessible name. */
+  label: string;
+  rows: Row[];
+  rowKey: (row: Row) => string;
+  columns: Column<Row>[];
+  /** Shown instead of rows when there are none. */
+  empty: ReactNode;
+  className?: string;
+  /** On the `<table>`, e.g. a `min-w-*` that scrolls on narrow screens. */
+  contentClassName?: string;
+  /** On the scroll container, e.g. a `max-h-*` that scrolls tall tables. */
+  scrollClassName?: string;
+  /** Makes whole rows clickable (links inside still work on their own). */
+  onRowAction?: (key: Key) => void;
+  footer?: ReactNode;
+}) {
+  return (
+    <Table variant="secondary" className={className}>
+      <Table.ScrollContainer className={scrollClassName}>
+        <Table.Content
+          aria-label={label}
+          className={contentClassName}
+          onRowAction={onRowAction}
+        >
+          <Table.Header>
+            {columns.map((column, index) => (
+              <Table.Column
+                key={column.title}
+                isRowHeader={index === 0}
+                className={column.numeric ? 'text-end' : undefined}
+              >
+                {column.title}
+              </Table.Column>
+            ))}
+          </Table.Header>
+          <Table.Body
+            renderEmptyState={() =>
+              typeof empty === 'string' ? <EmptyRows>{empty}</EmptyRows> : empty
+            }
+          >
+            {rows.map((row) => (
+              <Table.Row
+                key={rowKey(row)}
+                id={rowKey(row)}
+                className={onRowAction ? 'cursor-pointer' : undefined}
+              >
+                {columns.map((column) => (
+                  <Table.Cell
+                    key={column.title}
+                    className={[
+                      column.numeric && 'tabular text-end',
+                      column.className,
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                  >
+                    {column.render(row)}
+                  </Table.Cell>
+                ))}
+              </Table.Row>
+            ))}
+          </Table.Body>
+        </Table.Content>
+      </Table.ScrollContainer>
+      {footer && <Table.Footer>{footer}</Table.Footer>}
+    </Table>
+  );
+}

@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { renderApp, signIn } from '../test/render';
@@ -34,5 +34,20 @@ describe('theme', () => {
     );
     expect(localStorage.getItem('fitflow-admin.theme')).toBe('system');
     expect(root.dataset.theme).toBe('light');
+  });
+
+  it('follows a theme picked in another tab', async () => {
+    renderApp('/', {
+      'GET health': () => ({ status: 200, body: { status: 'ok' } }),
+    });
+    await screen.findByRole('radio', { name: 'Dark theme' });
+    localStorage.setItem('fitflow-admin.theme', 'dark');
+    act(() => {
+      dispatchEvent(
+        new StorageEvent('storage', { key: 'fitflow-admin.theme' }),
+      );
+    });
+    expect(root.dataset.theme).toBe('dark');
+    expect(screen.getByRole('radio', { name: 'Dark theme' })).toBeChecked();
   });
 });

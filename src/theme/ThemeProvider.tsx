@@ -6,6 +6,7 @@ import {
   resolveTheme,
   saveThemeMode,
   systemPrefersDark,
+  THEME_KEY,
   type ThemeMode,
 } from './mode';
 
@@ -21,6 +22,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const onChange = () => setPrefersDark(query.matches);
     query.addEventListener('change', onChange);
     return () => query.removeEventListener('change', onChange);
+  }, []);
+
+  // Another tab picked a theme: follow it.
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === THEME_KEY || event.key === null) {
+        setModeState(loadThemeMode());
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, []);
 
   useEffect(() => applyTheme(resolved), [resolved]);
