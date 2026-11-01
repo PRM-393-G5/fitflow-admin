@@ -1,3 +1,4 @@
+import { formatExact } from '../format';
 import { useTheme } from '../theme/context';
 
 /**
@@ -56,11 +57,10 @@ const compact = new Intl.NumberFormat('en', {
   notation: 'compact',
   maximumFractionDigits: 1,
 });
-const whole = new Intl.NumberFormat('en');
 
 /** 1,284 / 12.9K: exact below 10,000, compact above. */
 export function formatCount(value: number): string {
-  return Math.abs(value) < 10_000 ? whole.format(value) : compact.format(value);
+  return Math.abs(value) < 10_000 ? formatExact(value) : compact.format(value);
 }
 
 /** Axis ticks: 0 / 500 / 1K / 2K. */

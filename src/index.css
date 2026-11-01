@@ -21,15 +21,7 @@
     sans-serif;
 }
 
-body {
-  margin: 0;
-}
-
 /* Chart parts drawn outside the chart library. */
 .chart-tooltip {
   @apply bg-overlay text-overlay-foreground rounded-xl border border-separator px-3 py-2 text-sm shadow-lg;
-}
-
-.tabular {
-  font-variant-numeric: tabular-nums;
 }

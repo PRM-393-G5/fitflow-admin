@@ -28,11 +28,11 @@ describe('theme', () => {
     expect(root).toHaveClass('dark');
     expect(localStorage.getItem('fitflow-admin.theme')).toBe('dark');
 
-    // The narrow sidebar's single button steps on to the next mode.
+    // The narrow sidebar's single button flips to the other look.
     await userEvent.click(
-      screen.getByRole('button', { name: /^Dark theme\. Switch to/ }),
+      screen.getByRole('button', { name: 'Switch to light theme' }),
     );
-    expect(localStorage.getItem('fitflow-admin.theme')).toBe('system');
+    expect(localStorage.getItem('fitflow-admin.theme')).toBe('light');
     expect(root.dataset.theme).toBe('light');
   });
 

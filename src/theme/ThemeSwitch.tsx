@@ -29,20 +29,23 @@ export function ThemeSwitch({ fullWidth = false }: { fullWidth?: boolean }) {
   );
 }
 
-/** The narrow-sidebar form: one button that steps through the modes. */
+/**
+ * The narrow-sidebar and sign-in form: one button that flips to the
+ * other look (every press changes something; "system" lives in the full
+ * switch).
+ */
 export function ThemeCycleButton() {
-  const { mode, setMode } = useTheme();
-  const index = OPTIONS.findIndex((option) => option.value === mode);
-  const current = OPTIONS[index];
-  const next = OPTIONS[(index + 1) % OPTIONS.length];
+  const { resolved, setMode } = useTheme();
+  const next = resolved === 'dark' ? 'light' : 'dark';
+  const Icon = resolved === 'dark' ? Moon : Sun;
   return (
     <Button
       isIconOnly
       variant="ghost"
-      aria-label={`${current.label}. Switch to ${next.label.toLowerCase()}`}
-      onPress={() => setMode(next.value)}
+      aria-label={`Switch to ${next} theme`}
+      onPress={() => setMode(next)}
     >
-      <current.Icon />
+      <Icon />
     </Button>
   );
 }

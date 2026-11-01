@@ -1,6 +1,6 @@
 import { Pagination } from '@heroui/react';
 import { formatExact } from '../format';
-import { pageItems } from './pages';
+import { pageCountOf, pageItems } from './pages';
 
 /** "21–40 of 132" and the page links; [page] counts from 1. */
 export function Pager({
@@ -16,12 +16,14 @@ export function Pager({
   onChange: (page: number) => void;
   noun?: string;
 }) {
-  const pageCount = Math.max(1, Math.ceil(total / pageSize));
-  const first = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  // Nothing to count: the list's own empty state says so.
+  if (total === 0) return null;
+  const pageCount = pageCountOf(total, pageSize);
+  const first = (page - 1) * pageSize + 1;
   const last = Math.min(page * pageSize, total);
   return (
     <Pagination size="sm" className="w-full">
-      <Pagination.Summary className="tabular">
+      <Pagination.Summary className="tabular-nums">
         {formatExact(first)}–{formatExact(last)} of {formatExact(total)} {noun}
       </Pagination.Summary>
       {pageCount > 1 && (

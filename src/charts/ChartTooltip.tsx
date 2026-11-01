@@ -21,7 +21,7 @@ export function ChartTooltip({
     <div className="chart-tooltip">
       <div className="mb-1 text-xs text-muted">{title}</div>
       {rows.map((row) => (
-        <div key={row.label} className="tabular flex items-center gap-2">
+        <div key={row.label} className="tabular-nums flex items-center gap-2">
           <span
             className="h-0.5 w-3 rounded-full"
             style={{ backgroundColor: row.color }}

@@ -11,6 +11,7 @@ import { DataTable } from '../../ui/DataTable';
 import { Dimmed, EmptyRows, Notice, ReportSkeleton } from '../../ui/feedback';
 import { PageHeader } from '../../ui/PageHeader';
 import { Pager } from '../../ui/Pager';
+import { pageCountOf } from '../../ui/pages';
 import { SectionCard } from '../../ui/SectionCard';
 import { StatTile } from '../../ui/StatTile';
 import { userPath } from '../users/paths';
@@ -74,14 +75,6 @@ export function AiUsagePage() {
 
 function AiUsageContent({ data }: { data: AiUsageReport }) {
   const CHART = useChartTokens();
-  const [page, setPage] = useState(1);
-  // A new range starts the latest calls again from page 1 (adjusting
-  // state during render, as React recommends).
-  const [pagedDays, setPagedDays] = useState(data.range.days);
-  if (pagedDays !== data.range.days) {
-    setPagedDays(data.range.days);
-    setPage(1);
-  }
   const { totals } = data;
   const share = totals.calls > 0 ? (totals.errors / totals.calls) * 100 : 0;
   // A real but tiny share is "<1%", never a misleading "0%".
@@ -95,17 +88,6 @@ function AiUsageContent({ data }: { data: AiUsageReport }) {
     label: featureLabel(row.feature),
     value: row.calls,
   }));
-  // A refetch can return fewer calls than the page being shown.
-  const pageCount = Math.max(
-    1,
-    Math.ceil(data.recent.length / RECENT_PAGE_SIZE),
-  );
-  if (page > pageCount) setPage(pageCount);
-  const shownPage = Math.min(page, pageCount);
-  const recent = data.recent.slice(
-    (shownPage - 1) * RECENT_PAGE_SIZE,
-    shownPage * RECENT_PAGE_SIZE,
-  );
 
   return (
     <>
@@ -259,55 +241,71 @@ function AiUsageContent({ data }: { data: AiUsageReport }) {
         </SectionCard>
       </div>
 
-      <SectionCard
-        title="Latest calls"
-        description="The newest calls, whatever the range"
-      >
-        <DataTable
-          label="Latest calls"
-          rows={recent}
-          rowKey={(call) => call.id}
-          empty="No AI calls yet"
-          contentClassName="min-w-[720px]"
-          columns={[
-            {
-              title: 'When',
-              className: 'tabular whitespace-nowrap',
-              render: (call) => formatDateTime(call.createdAt),
-            },
-            { title: 'Feature', render: (call) => featureLabel(call.feature) },
-            { title: 'User', render: (call) => <UserCell user={call.user} /> },
-            {
-              title: 'Result',
-              render: (call) =>
-                call.ok ? (
-                  <Chip size="sm" color="success" variant="soft">
-                    <Chip.Label>OK</Chip.Label>
-                  </Chip>
-                ) : (
-                  <Chip size="sm" color="danger" variant="soft">
-                    <CircleXmark className="size-3.5" />
-                    <Chip.Label>{errorLabel(call.errorCode)}</Chip.Label>
-                  </Chip>
-                ),
-            },
-            {
-              title: 'Duration',
-              numeric: true,
-              render: (call) => seconds(call.durationMs),
-            },
-          ]}
-          footer={
-            <Pager
-              page={shownPage}
-              pageSize={RECENT_PAGE_SIZE}
-              total={data.recent.length}
-              onChange={setPage}
-              noun="calls"
-            />
-          }
-        />
-      </SectionCard>
+      {/* Keyed: a new range starts again from the newest calls. */}
+      <LatestCalls key={data.range.days} calls={data.recent} />
     </>
+  );
+}
+
+/** The newest calls, whatever the range, ten to a page. */
+function LatestCalls({ calls }: { calls: AiUsageReport['recent'] }) {
+  const [page, setPage] = useState(1);
+  // A refetch can return fewer calls than the page being shown.
+  const pageCount = pageCountOf(calls.length, RECENT_PAGE_SIZE);
+  if (page > pageCount) setPage(pageCount);
+  const shown = calls.slice(
+    (page - 1) * RECENT_PAGE_SIZE,
+    page * RECENT_PAGE_SIZE,
+  );
+  return (
+    <SectionCard
+      title="Latest calls"
+      description="The newest calls, whatever the range"
+    >
+      <DataTable
+        label="Latest calls"
+        rows={shown}
+        rowKey={(call) => call.id}
+        empty="No AI calls yet"
+        contentClassName="min-w-[720px]"
+        columns={[
+          {
+            title: 'When',
+            className: 'tabular-nums whitespace-nowrap',
+            render: (call) => formatDateTime(call.createdAt),
+          },
+          { title: 'Feature', render: (call) => featureLabel(call.feature) },
+          { title: 'User', render: (call) => <UserCell user={call.user} /> },
+          {
+            title: 'Result',
+            render: (call) =>
+              call.ok ? (
+                <Chip size="sm" color="success" variant="soft">
+                  <Chip.Label>OK</Chip.Label>
+                </Chip>
+              ) : (
+                <Chip size="sm" color="danger" variant="soft">
+                  <CircleXmark className="size-3.5" />
+                  <Chip.Label>{errorLabel(call.errorCode)}</Chip.Label>
+                </Chip>
+              ),
+          },
+          {
+            title: 'Duration',
+            numeric: true,
+            render: (call) => seconds(call.durationMs),
+          },
+        ]}
+        footer={
+          <Pager
+            page={page}
+            pageSize={RECENT_PAGE_SIZE}
+            total={calls.length}
+            onChange={setPage}
+            noun="calls"
+          />
+        }
+      />
+    </SectionCard>
   );
 }

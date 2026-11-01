@@ -1,4 +1,4 @@
-import { Alert, Skeleton } from '@heroui/react';
+import { Alert, Skeleton, Spinner } from '@heroui/react';
 import type { ReactNode } from 'react';
 
 /** A banner above the page's content: what went wrong or needs a look. */
@@ -12,7 +12,12 @@ export function Notice({
   children?: ReactNode;
 }) {
   return (
-    <Alert status={status} className="mb-6">
+    // Announced as it appears: errors interrupt, the rest wait their turn.
+    <Alert
+      status={status}
+      role={status === 'danger' ? 'alert' : 'status'}
+      className="mb-6"
+    >
       <Alert.Indicator />
       <Alert.Content>
         <Alert.Title>{title}</Alert.Title>
@@ -64,6 +69,15 @@ export function Dimmed({
       className={`flex flex-col gap-4 transition-opacity duration-200 ${when ? 'opacity-55' : ''}`}
     >
       {children}
+    </div>
+  );
+}
+
+/** The whole screen, while the first page's code loads. */
+export function PageLoading() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <Spinner size="lg" aria-label="Loading" />
     </div>
   );
 }
