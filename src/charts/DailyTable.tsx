@@ -1,32 +1,30 @@
-import { Table } from 'antd';
+import { DataTable } from '../ui/DataTable';
 import { formatCount, formatDay } from './tokens';
 
 /** The table twin of a per-day chart, newest day first. */
 export function DailyTable<Row extends { date: string }>({
   rows,
   columns,
+  label,
 }: {
   rows: Row[];
   columns: Array<[keyof Row & string, string]>;
+  label: string;
 }) {
   return (
-    <Table<Row>
-      size="small"
-      rowKey="date"
-      dataSource={[...rows].reverse()}
-      pagination={{ pageSize: 10, hideOnSinglePage: true }}
+    <DataTable
+      label={label}
+      rows={[...rows].reverse()}
+      rowKey={(row) => row.date}
+      // Tall ranges scroll under a header that stays put.
+      scrollClassName="max-h-80 overflow-y-auto [&_th]:sticky [&_th]:top-0 [&_th]:z-10"
+      empty="No days in this range"
       columns={[
-        {
-          title: 'Day',
-          dataIndex: 'date',
-          render: (day: string) => formatDay(day),
-        },
+        { title: 'Day', render: (row) => formatDay(row.date) },
         ...columns.map(([key, title]) => ({
           title,
-          dataIndex: key,
-          align: 'right' as const,
-          className: 'tabular',
-          render: (value: number) => formatCount(value),
+          numeric: true,
+          render: (row: Row) => formatCount(Number(row[key])),
         })),
       ]}
     />

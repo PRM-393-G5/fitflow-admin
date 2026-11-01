@@ -1,0 +1,24 @@
+/*
+ * Layout helpers for the pages not yet moved to HeroUI (users, templates).
+ * Delete with the last antd page.
+ */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.page-header h2 {
+  margin-bottom: 4px;
+}
+
+.exercise-row {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--separator);
+}
+
+.exercise-row:last-of-type {
+  border-bottom: none;
+}

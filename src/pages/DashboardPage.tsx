@@ -1,19 +1,44 @@
+import {
+  Camera,
+  Clock,
+  Flame,
+  LayoutHeaderCellsLarge,
+  Persons,
+  Pulse,
+  Sparkles,
+} from '@gravity-ui/icons';
+import { Chip, Link } from '@heroui/react';
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Badge, Col, Row, Skeleton, Typography } from 'antd';
-import { Link } from 'react-router';
 import { ApiError } from '../api/client';
 import { displayName } from '../auth/session';
 import { useApi, useAuth } from '../auth/useAuth';
-import { ChartCard } from '../charts/ChartCard';
 import { DailyBarChart } from '../charts/DailyBarChart';
-import { StatTile } from '../charts/StatTile';
-import { CHART, formatCount, formatDay } from '../charts/tokens';
-import { useOverview } from '../features/stats/api';
 import { DailyTable } from '../charts/DailyTable';
+import { formatCount, useChartTokens } from '../charts/tokens';
+import { useOverview } from '../features/stats/api';
 import { DEFAULT_DAYS, useRangeDays } from '../features/stats/range';
-import { RangeFilter } from '../features/stats/RangeFilter';
+import { RangeBar } from '../features/stats/RangeBar';
 import type { DailyActivity } from '../features/stats/types';
 import { formatMinutes } from '../features/users/labels';
+import { ChartCard } from '../ui/ChartCard';
+import { Dimmed, Notice, ReportSkeleton } from '../ui/feedback';
+import { PageHeader } from '../ui/PageHeader';
+import { StatTile } from '../ui/StatTile';
+
+function StatusChip({
+  color,
+  children,
+}: {
+  color: 'default' | 'success' | 'warning' | 'danger';
+  children: string;
+}) {
+  return (
+    <Chip color={color} variant="soft">
+      <span aria-hidden className="size-1.5 rounded-full bg-current" />
+      <Chip.Label>{children}</Chip.Label>
+    </Chip>
+  );
+}
 
 function ApiStatus() {
   const api = useApi();
@@ -22,16 +47,17 @@ function ApiStatus() {
     queryFn: () => api.get('health'),
     retry: false,
   });
-  if (health.isPending) return <Badge status="processing" text="Checking…" />;
+  if (health.isPending)
+    return <StatusChip color="default">Checking…</StatusChip>;
   if (health.isError) {
     // The API answers 503 when it is up but its database is not.
     return health.error instanceof ApiError && health.error.status === 503 ? (
-      <Badge status="warning" text="API up, database unreachable" />
+      <StatusChip color="warning">API up, database unreachable</StatusChip>
     ) : (
-      <Badge status="error" text={health.error.message} />
+      <StatusChip color="danger">{health.error.message}</StatusChip>
     );
   }
-  return <Badge status="success" text="API ok, database up" />;
+  return <StatusChip color="success">API ok, database up</StatusChip>;
 }
 
 export function DashboardPage() {
@@ -39,105 +65,96 @@ export function DashboardPage() {
   const [days, setDays] = useRangeDays();
   const overview = useOverview(days);
   const data = overview.data;
+  const CHART = useChartTokens();
 
   return (
     <>
-      <div className="page-header">
-        <div>
-          <Typography.Title level={2}>
-            Welcome, {session && displayName(session.admin)}
-          </Typography.Title>
-          <Typography.Text type="secondary">
-            {data
-              ? `${formatDay(data.range.from)} – ${formatDay(data.range.to)} · ${data.range.tz}`
-              : 'FitFlow at a glance'}
-          </Typography.Text>
-        </div>
-        <ApiStatus />
-      </div>
+      <PageHeader
+        title={`Welcome, ${session ? displayName(session.admin) : ''}`}
+        description="FitFlow at a glance"
+        actions={<ApiStatus />}
+      />
 
-      <div className="filter-row">
-        <RangeFilter days={days} onChange={setDays} />
-      </div>
+      <RangeBar
+        days={days}
+        onChange={setDays}
+        range={data?.range}
+        isStale={overview.isPlaceholderData}
+      />
 
       {overview.isError && (
-        <Alert
-          type="error"
-          showIcon
-          title={overview.error.message}
-          style={{ marginBottom: 16 }}
-        />
+        <Notice status="danger" title={overview.error.message} />
       )}
 
       {!data ? (
-        overview.isPending && <Skeleton active paragraph={{ rows: 8 }} />
+        overview.isPending && <ReportSkeleton tileRows={[4, 3]} />
       ) : (
-        <div
-          style={{
-            opacity: overview.isPlaceholderData ? 0.55 : 1,
-            transition: 'opacity 0.2s',
-          }}
-        >
-          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-            <Col xs={12} md={8} xl={6}>
-              <StatTile
-                label="Users"
-                value={formatCount(data.users.total)}
-                note={`${formatCount(data.users.new)} new · ${formatCount(data.users.locked)} locked`}
-              />
-            </Col>
-            <Col xs={12} md={8} xl={6}>
-              <StatTile
-                label="Active users"
-                value={formatCount(data.users.active)}
-                note="Finished a workout or form check"
-              />
-            </Col>
-            <Col xs={12} md={8} xl={6}>
-              <StatTile
-                label="Workouts"
-                value={formatCount(data.sessions.inRange)}
-                note={`${formatCount(data.sessions.total)} all time`}
-              />
-            </Col>
-            <Col xs={12} md={8} xl={6}>
-              <StatTile
-                label="Training time"
-                value={formatMinutes(data.sessions.minutesInRange)}
-              />
-            </Col>
-            <Col xs={12} md={8} xl={6}>
-              <StatTile
-                label="Form checks"
-                value={formatCount(data.sessions.formChecksInRange)}
-              />
-            </Col>
-            <Col xs={12} md={8} xl={6}>
-              <StatTile
-                label="AI calls"
-                value={formatCount(data.ai.calls)}
-                note={
-                  <Link
-                    to={`/ai${days === DEFAULT_DAYS ? '' : `?days=${days}`}`}
-                  >
-                    {formatCount(data.ai.errors)} failed · details
-                  </Link>
-                }
-              />
-            </Col>
-            <Col xs={12} md={8} xl={6}>
-              <StatTile
-                label="Workout templates"
-                value={formatCount(data.templates)}
-                note={<Link to="/templates">Manage</Link>}
-              />
-            </Col>
-          </Row>
+        <Dimmed when={overview.isPlaceholderData}>
+          <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+            <StatTile
+              label="Users"
+              icon={<Persons />}
+              value={formatCount(data.users.total)}
+              note={`${formatCount(data.users.new)} new · ${formatCount(data.users.locked)} locked`}
+            />
+            <StatTile
+              label="Active users"
+              icon={<Pulse />}
+              value={formatCount(data.users.active)}
+              note="Finished a workout or form check"
+            />
+            <StatTile
+              label="Workouts"
+              icon={<Flame />}
+              value={formatCount(data.sessions.inRange)}
+              note={`${formatCount(data.sessions.total)} all time`}
+            />
+            <StatTile
+              label="Training time"
+              icon={<Clock />}
+              value={formatMinutes(data.sessions.minutesInRange)}
+              note="Across all workouts"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+            <StatTile
+              label="Form checks"
+              icon={<Camera />}
+              tone="default"
+              value={formatCount(data.sessions.formChecksInRange)}
+            />
+            <StatTile
+              label="AI calls"
+              icon={<Sparkles />}
+              tone="default"
+              value={formatCount(data.ai.calls)}
+              note={
+                <Link
+                  className="text-xs"
+                  href={`/ai${days === DEFAULT_DAYS ? '' : `?days=${days}`}`}
+                >
+                  {formatCount(data.ai.errors)} failed · details
+                </Link>
+              }
+            />
+            <StatTile
+              label="Workout templates"
+              icon={<LayoutHeaderCellsLarge />}
+              tone="default"
+              value={formatCount(data.templates)}
+              note={
+                <Link className="text-xs" href="/templates">
+                  Manage
+                </Link>
+              }
+            />
+          </div>
 
-          <Row gutter={[16, 16]}>
-            <Col xs={24} xl={14}>
+          <div className="grid gap-4 xl:grid-cols-12">
+            <div className="xl:col-span-7">
               <ChartCard
                 title="Workouts per day"
+                description="Finished workouts and form checks"
                 chart={
                   <DailyBarChart<DailyActivity>
                     data={data.daily}
@@ -157,6 +174,7 @@ export function DashboardPage() {
                 }
                 table={
                   <DailyTable
+                    label="Workouts per day"
                     rows={data.daily}
                     columns={[
                       ['sessions', 'Workouts'],
@@ -165,10 +183,11 @@ export function DashboardPage() {
                   />
                 }
               />
-            </Col>
-            <Col xs={24} xl={10}>
+            </div>
+            <div className="xl:col-span-5">
               <ChartCard
                 title="New users per day"
+                description="Accounts created"
                 chart={
                   <DailyBarChart<DailyActivity>
                     data={data.daily}
@@ -183,14 +202,15 @@ export function DashboardPage() {
                 }
                 table={
                   <DailyTable
+                    label="New users per day"
                     rows={data.daily}
                     columns={[['newUsers', 'New users']]}
                   />
                 }
               />
-            </Col>
-          </Row>
-        </div>
+            </div>
+          </div>
+        </Dimmed>
       )}
     </>
   );

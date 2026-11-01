@@ -123,7 +123,7 @@ describe('dashboard', () => {
     await screen.findByText('300');
     const card = screen
       .getByText('Workouts per day')
-      .closest('.ant-card') as HTMLElement;
+      .closest('.card') as HTMLElement;
     await userEvent.click(within(card).getByText('Table'));
     const rows = within(card).getAllByRole('row').slice(1);
     // Newest day first: day, workouts, form checks.
@@ -157,12 +157,95 @@ describe('AI usage', () => {
       [`GET ${path('ai', 30)}`]: () => ({ status: 200, body: aiReport }),
     });
     const card = (await screen.findByText('Calls by feature')).closest(
-      '.ant-card',
+      '.card',
     ) as HTMLElement;
     await userEvent.click(within(card).getByText('Table'));
     await waitFor(() =>
       expect(within(card).getByText('Meal plan')).toBeVisible(),
     );
     expect(within(card).getByText('Food photo')).toBeVisible();
+  });
+
+  it('pages through the latest calls', async () => {
+    const recent = Array.from({ length: 12 }, (_, index) => ({
+      ...aiReport.recent[0],
+      id: `c${index + 1}`,
+      ok: true,
+      errorCode: null,
+      user: {
+        id: `u${index + 1}`,
+        email: `user${index + 1}@example.com`,
+        name: `User ${index + 1}`,
+      },
+    }));
+    renderApp('/ai', {
+      [`GET ${path('ai', 30)}`]: () => ({
+        status: 200,
+        body: { ...aiReport, recent },
+      }),
+    });
+    expect(await screen.findByText('1–10 of 12 calls')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'User 10' })).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'User 11' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Page 2' }));
+    expect(await screen.findByText('11–12 of 12 calls')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'User 11' })).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'User 10' })).toBeNull();
+  });
+
+  it('never strands the latest calls on a page that is gone', async () => {
+    const recent = Array.from({ length: 12 }, (_, index) => ({
+      ...aiReport.recent[0],
+      id: `c${index + 1}`,
+      user: {
+        id: `u${index + 1}`,
+        email: `user${index + 1}@example.com`,
+        name: `User ${index + 1}`,
+      },
+    }));
+    renderApp('/ai', {
+      [`GET ${path('ai', 30)}`]: () => ({
+        status: 200,
+        body: { ...aiReport, recent },
+      }),
+      [`GET ${path('ai', 7)}`]: () => ({
+        status: 200,
+        body: {
+          ...aiReport,
+          range: { ...aiReport.range, days: 7 },
+          recent: recent.slice(0, 3),
+        },
+      }),
+    });
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Page 2' }),
+    );
+    expect(await screen.findByText('11–12 of 12 calls')).toBeVisible();
+    await userEvent.click(screen.getByText('Last 7 days'));
+    // Three calls now: they show, on the only page there is.
+    expect(await screen.findByRole('link', { name: 'User 3' })).toBeVisible();
+    expect(screen.queryByText('No AI calls yet')).toBeNull();
+    // Back to 30 days: the newest calls again, not the old page 2.
+    await userEvent.click(screen.getByText('Last 30 days'));
+    expect(await screen.findByText('1–10 of 12 calls')).toBeVisible();
+  });
+
+  it('keeps a chart shown as a table when the range changes', async () => {
+    renderApp('/ai', {
+      [`GET ${path('ai', 30)}`]: () => ({ status: 200, body: aiReport }),
+      [`GET ${path('ai', 7)}`]: () => ({
+        status: 200,
+        body: { ...aiReport, range: { ...aiReport.range, days: 7 } },
+      }),
+    });
+    const card = (await screen.findByText('Calls by feature')).closest(
+      '.card',
+    ) as HTMLElement;
+    await userEvent.click(within(card).getByText('Table'));
+    await userEvent.click(screen.getByText('Last 7 days'));
+    await waitFor(() =>
+      expect(within(card).getByRole('radio', { name: 'Table' })).toBeChecked(),
+    );
+    expect(within(card).getByText('Meal plan')).toBeVisible();
   });
 });

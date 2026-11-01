@@ -1,13 +1,20 @@
 # FitFlow Admin
 
 Admin web for [FitFlow](https://github.com/PRM-393-G5/fitflow), built with
-React, Vite and TypeScript (antd, React Router, TanStack Query). It talks
-to the [FitFlow API](https://github.com/PRM-393-G5/fitflow-api) through its
+React, Vite and TypeScript ([HeroUI v3](https://heroui.com) on Tailwind CSS
+v4, React Router, TanStack Query, Recharts). It talks to the
+[FitFlow API](https://github.com/PRM-393-G5/fitflow-api) through its
 `/api/admin/*` routes.
+
+The users and templates pages still use antd while they move to HeroUI;
+antd is loaded only on those pages.
 
 ## Features
 
 - **Sign-in** with an admin account (email + password).
+- **Light, dark or system theme**, switched from the sidebar and
+  remembered in the browser; charts use colours stepped for each theme.
+  Below 1024 px wide the sidebar folds into an icon rail.
 - **Dashboard**: users (total, new, locked, active), workouts, training
   time, form checks, AI calls and templates for the last 7, 30 or 90
   days, with workouts and new users per day. Days are the admin's

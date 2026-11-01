@@ -149,6 +149,47 @@ describe('login', () => {
     ).toBeVisible();
   });
 
+  it('checks the fields, and clears an error once it is fixed', async () => {
+    const { calls } = renderApp('/login', api);
+    const user = userEvent.setup();
+    const email = await screen.findByLabelText('Email');
+    await user.type(email, 'boss@');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByText('Enter a valid email')).toBeVisible();
+    expect(screen.getByText('Enter your password')).toBeVisible();
+    expect(calls.some((call) => call.path === 'admin/auth/login')).toBe(false);
+
+    // Any address the API accepts for an admin, e.g. admin@localhost.
+    await user.type(email, 'localhost');
+    expect(screen.queryByText('Enter a valid email')).toBeNull();
+    // The other field keeps its error until it is fixed too.
+    expect(screen.getByText('Enter your password')).toBeVisible();
+  });
+
+  it('drops an old sign-in error when the fields need fixing', async () => {
+    renderApp('/login', api);
+    await signIn('boss@example.com', 'wrong-pass');
+    expect(await screen.findByText('Wrong email or password.')).toBeVisible();
+    await userEvent.clear(screen.getByLabelText('Password'));
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByText('Enter your password')).toBeVisible();
+    expect(screen.queryByText('Wrong email or password.')).toBeNull();
+  });
+
+  it('shows and hides the password', async () => {
+    renderApp('/login', api);
+    const password = await screen.findByLabelText('Password');
+    expect(password).toHaveAttribute('type', 'password');
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Show password' }),
+    );
+    expect(password).toHaveAttribute('type', 'text');
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Hide password' }),
+    );
+    expect(password).toHaveAttribute('type', 'password');
+  });
+
   it('words each failure for the admin', () => {
     expect(loginErrorMessage(new ApiError(429, 'x'))).toMatch(
       /Too many attempts/,
