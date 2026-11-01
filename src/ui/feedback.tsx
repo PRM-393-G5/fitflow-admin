@@ -23,7 +23,7 @@ export function Notice({
 }
 
 const TILE_COLUMNS: Record<number, string> = {
-  3: 'xl:grid-cols-3',
+  3: 'md:grid-cols-3',
   4: 'xl:grid-cols-4',
 };
 

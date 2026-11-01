@@ -14,6 +14,7 @@ import {
   Form,
   InputGroup,
   Label,
+  Spinner,
   TextField,
 } from '@heroui/react';
 import { useState, type FormEvent } from 'react';
@@ -23,8 +24,8 @@ import { LOGO_URL } from '../theme/brand';
 import { ThemeCycleButton } from '../theme/ThemeSwitch';
 import { loginErrorMessage } from './loginErrorMessage';
 
-/** One @, no spaces or list separators, dot-separated domain labels. */
-const EMAIL = /^[^\s@,;]+@[^\s@,;.]+(?:\.[^\s@,;.]+)*\.[a-z]{2,}$/i;
+/** The API's rule for admin emails (`npm run admin:create`), no stricter. */
+const EMAIL = /^[^\s@]+@[^\s@]+$/;
 
 const HIGHLIGHTS = [
   {
@@ -232,7 +233,12 @@ export function LoginPage() {
               className="mt-2"
               isPending={submitting}
             >
-              Sign in
+              {({ isPending }) => (
+                <>
+                  {isPending && <Spinner color="current" size="sm" />}
+                  Sign in
+                </>
+              )}
             </Button>
           </Form>
           <p className="mt-8 text-xs text-muted">

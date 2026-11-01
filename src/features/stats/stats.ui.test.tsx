@@ -229,4 +229,23 @@ describe('AI usage', () => {
     await userEvent.click(screen.getByText('Last 30 days'));
     expect(await screen.findByText('1–10 of 12 calls')).toBeVisible();
   });
+
+  it('keeps a chart shown as a table when the range changes', async () => {
+    renderApp('/ai', {
+      [`GET ${path('ai', 30)}`]: () => ({ status: 200, body: aiReport }),
+      [`GET ${path('ai', 7)}`]: () => ({
+        status: 200,
+        body: { ...aiReport, range: { ...aiReport.range, days: 7 } },
+      }),
+    });
+    const card = (await screen.findByText('Calls by feature')).closest(
+      '.card',
+    ) as HTMLElement;
+    await userEvent.click(within(card).getByText('Table'));
+    await userEvent.click(screen.getByText('Last 7 days'));
+    await waitFor(() =>
+      expect(within(card).getByRole('radio', { name: 'Table' })).toBeChecked(),
+    );
+    expect(within(card).getByText('Meal plan')).toBeVisible();
+  });
 });

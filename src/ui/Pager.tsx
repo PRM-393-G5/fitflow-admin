@@ -1,5 +1,5 @@
 import { Pagination } from '@heroui/react';
-import { formatCount } from '../charts/tokens';
+import { formatExact } from '../format';
 import { pageItems } from './pages';
 
 /** "21–40 of 132" and the page links; [page] counts from 1. */
@@ -22,7 +22,7 @@ export function Pager({
   return (
     <Pagination size="sm" className="w-full">
       <Pagination.Summary className="tabular">
-        {formatCount(first)}–{formatCount(last)} of {formatCount(total)} {noun}
+        {formatExact(first)}–{formatExact(last)} of {formatExact(total)} {noun}
       </Pagination.Summary>
       {pageCount > 1 && (
         <Pagination.Content>

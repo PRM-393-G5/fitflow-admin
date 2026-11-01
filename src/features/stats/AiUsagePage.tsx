@@ -65,8 +65,7 @@ export function AiUsagePage() {
         report.isPending && <ReportSkeleton />
       ) : (
         <Dimmed when={report.isPlaceholderData}>
-          {/* A new range starts the latest calls again from page 1. */}
-          <AiUsageContent key={data.range.days} data={data} />
+          <AiUsageContent data={data} />
         </Dimmed>
       )}
     </>
@@ -76,6 +75,13 @@ export function AiUsagePage() {
 function AiUsageContent({ data }: { data: AiUsageReport }) {
   const CHART = useChartTokens();
   const [page, setPage] = useState(1);
+  // A new range starts the latest calls again from page 1 (adjusting
+  // state during render, as React recommends).
+  const [pagedDays, setPagedDays] = useState(data.range.days);
+  if (pagedDays !== data.range.days) {
+    setPagedDays(data.range.days);
+    setPage(1);
+  }
   const { totals } = data;
   const share = totals.calls > 0 ? (totals.errors / totals.calls) * 100 : 0;
   // A real but tiny share is "<1%", never a misleading "0%".
@@ -94,6 +100,7 @@ function AiUsageContent({ data }: { data: AiUsageReport }) {
     1,
     Math.ceil(data.recent.length / RECENT_PAGE_SIZE),
   );
+  if (page > pageCount) setPage(pageCount);
   const shownPage = Math.min(page, pageCount);
   const recent = data.recent.slice(
     (shownPage - 1) * RECENT_PAGE_SIZE,
@@ -291,15 +298,13 @@ function AiUsageContent({ data }: { data: AiUsageReport }) {
             },
           ]}
           footer={
-            pageCount > 1 && (
-              <Pager
-                page={shownPage}
-                pageSize={RECENT_PAGE_SIZE}
-                total={data.recent.length}
-                onChange={setPage}
-                noun="calls"
-              />
-            )
+            <Pager
+              page={shownPage}
+              pageSize={RECENT_PAGE_SIZE}
+              total={data.recent.length}
+              onChange={setPage}
+              noun="calls"
+            />
           }
         />
       </SectionCard>
