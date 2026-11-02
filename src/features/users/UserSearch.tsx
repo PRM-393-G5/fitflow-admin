@@ -45,6 +45,7 @@ export function UserSearch({
 
   return (
     <SearchField
+      variant="secondary"
       aria-label="Search users"
       value={search}
       onChange={setSearch}

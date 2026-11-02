@@ -456,7 +456,7 @@ function DeleteUserDialog({
               autoComplete="off"
               isDisabled={deleting}
             >
-              <Input placeholder={email} />
+              <Input variant="secondary" placeholder={email} />
             </TextField>
             {error && (
               <Alert status="danger">
