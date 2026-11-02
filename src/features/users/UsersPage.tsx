@@ -1,49 +1,31 @@
-import { SearchOutlined } from '@ant-design/icons';
-import {
-  Alert,
-  Avatar,
-  Card,
-  Input,
-  Segmented,
-  Space,
-  Table,
-  Typography,
-} from 'antd';
-import type { ColumnsType } from 'antd/es/table';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
-import { formatDateTime } from '../../format';
+import { Card, Label, Link, ListBox, Select, Spinner } from '@heroui/react';
+import { useCallback, useEffect, useMemo } from 'react';
+import { useLocation, useSearchParams } from 'react-router';
+import { formatDateTime, formatExact } from '../../format';
+import { DataTable, type Column } from '../../ui/DataTable';
+import { Dimmed, EmptyRows, Notice } from '../../ui/feedback';
+import { PageHeader } from '../../ui/PageHeader';
+import { Pager } from '../../ui/Pager';
+import { pageCountOf } from '../../ui/pages';
+import { Segmented } from '../../ui/Segmented';
 import { useUsers } from './api';
 import { userPath, type FromList } from './paths';
-import { StatusTag } from './StatusTag';
 import { DEFAULT_LIMIT, PAGE_SIZES, parseUserQuery } from './query';
+import { StatusTag } from './StatusTag';
 import type { UserStatus, UserSummary } from './types';
-
-const SEARCH_DELAY_MS = 300;
+import { UserAvatar } from './UserAvatar';
+import { UserSearch } from './UserSearch';
 
 export function UsersPage() {
-  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const query = parseUserQuery(params);
   const users = useUsers(query);
-  const [search, setSearch] = useState(query.search);
-  // Back, or the sidebar link, can change the URL's search: follow it
-  // (adjusting state during render, as React recommends).
-  const [searchFrom, setSearchFrom] = useState(query.search);
-  // The search our debounce last wrote: its URL update can land after the
-  // admin typed more, and must not wipe those keystrokes.
-  const [written, setWritten] = useState<string | null>(null);
-  if (query.search !== searchFrom) {
-    setSearchFrom(query.search);
-    if (query.search === written) {
-      // Our write has landed; from now on this value is like any other.
-      setWritten(null);
-    } else if (search.trim() !== query.search) {
-      setSearch(query.search);
-    }
-  }
   const listSearch = useLocation().search;
-  const columns = useMemo(() => columnsFor(listSearch), [listSearch]);
+  const fromList = useMemo(
+    () => ({ listSearch }) satisfies FromList,
+    [listSearch],
+  );
+  const columns = useMemo(() => columnsFor(fromList), [fromList]);
 
   /** Writes [changes] to the URL; any filter change goes back to page 1. */
   const update = useCallback(
@@ -66,6 +48,7 @@ export function UsersPage() {
       ),
     [setParams],
   );
+  const onSearch = useCallback((q: string) => update({ q }), [update]);
 
   // A page past the end (after deletions, or an old bookmark): go to the
   // last one.
@@ -76,135 +59,154 @@ export function UsersPage() {
     if (query.page > lastPage) update({ page: String(lastPage) });
   }, [total, query.page, query.limit, update]);
 
-  // Search as the admin types, once they pause.
-  useEffect(() => {
-    if (search.trim() === query.search) return;
-    const timer = setTimeout(() => {
-      setWritten(search.trim());
-      update({ q: search.trim() });
-    }, SEARCH_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [search, query.search, update]);
+  // New filters have no data until they load (or fail); a failed
+  // refresh of the same filters keeps the rows it already had.
+  const items = users.data?.items ?? [];
+  const lastPage = users.data
+    ? pageCountOf(users.data.total, query.limit)
+    : query.page;
+  // Past the end: the effect above is already moving to the last page.
+  const pastEnd = query.page > lastPage;
 
   return (
     <>
-      <div className="page-header">
-        <div>
-          <Typography.Title level={2}>Users</Typography.Title>
-          <Typography.Text type="secondary">
-            Everyone who has signed in to the FitFlow app.
-          </Typography.Text>
-        </div>
-      </div>
-      {users.isError && (
-        <Alert
-          type="error"
-          showIcon
-          title={users.error.message}
-          style={{ marginBottom: 16 }}
-        />
-      )}
+      <PageHeader
+        title="Users"
+        description="Everyone who has signed in to the FitFlow app."
+      />
+      {users.isError && <Notice status="danger" title={users.error.message} />}
       <Card>
-        <Space wrap style={{ marginBottom: 16 }}>
-          <Input
-            allowClear
-            prefix={<SearchOutlined />}
-            placeholder="Search email or name"
-            aria-label="Search users"
-            value={search}
-            maxLength={100}
-            onChange={(event) => setSearch(event.target.value)}
-            style={{ width: 280 }}
-          />
+        <div className="flex flex-wrap items-center gap-3">
+          <UserSearch value={query.search} onSearch={onSearch} />
           <Segmented<UserStatus>
+            ariaLabel="Status"
+            size="md"
             value={query.status}
             onChange={(status) =>
               update({ status: status === 'all' ? '' : status })
             }
             options={[
-              { label: 'All', value: 'all' },
-              { label: 'Active', value: 'active' },
-              { label: 'Locked', value: 'locked' },
+              { value: 'all', label: 'All' },
+              { value: 'active', label: 'Active' },
+              { value: 'locked', label: 'Locked' },
             ]}
           />
-        </Space>
-        <Table<UserSummary>
-          rowKey="id"
-          columns={columns}
-          // A failed load for new filters must not show the old rows.
-          dataSource={users.isError ? [] : users.data?.items}
-          loading={users.isFetching}
-          onRow={(user) => ({
-            onClick: (event) => {
-              // Links inside the row navigate on their own, and a
-              // modified click (new tab/window) belongs to the name link.
-              if ((event.target as HTMLElement).closest('a')) return;
-              if (event.ctrlKey || event.metaKey || event.shiftKey) return;
-              navigate(userPath(user.id), {
-                state: { listSearch } satisfies FromList,
-              });
-            },
-            style: { cursor: 'pointer' },
-          })}
-          pagination={{
-            current: query.page,
-            pageSize: query.limit,
-            total: users.data?.total ?? 0,
-            showSizeChanger: true,
-            pageSizeOptions: PAGE_SIZES,
-            showTotal: (total) => `${total} users`,
-            onChange: (page, limit) =>
-              update({ page: String(page), limit: String(limit) }),
-          }}
-          scroll={{ x: 800 }}
-        />
+          {/* Refreshing; the first load shows its spinner in the table. */}
+          {users.isFetching && !users.isPending && (
+            <Spinner size="sm" aria-label="Loading users" />
+          )}
+        </div>
+        <Dimmed when={users.isPlaceholderData}>
+          <DataTable
+            label="Users"
+            contentClassName="min-w-[760px]"
+            rows={items}
+            rowKey={(user) => user.id}
+            rowHref={(user) => userPath(user.id)}
+            rowRouterOptions={() => ({ state: fromList })}
+            empty={
+              users.isPending || pastEnd ? (
+                <div className="flex justify-center py-10">
+                  <Spinner aria-label="Loading users" />
+                </div>
+              ) : users.isError && !users.data ? (
+                <EmptyRows>The list could not be loaded.</EmptyRows>
+              ) : (
+                <EmptyRows>No users match these filters</EmptyRows>
+              )
+            }
+            columns={columns}
+            footer={
+              users.data && (
+                <div className="flex w-full flex-wrap items-center gap-4">
+                  <div className="min-w-0 flex-1">
+                    <Pager
+                      page={Math.min(query.page, lastPage)}
+                      pageSize={query.limit}
+                      total={users.data.total}
+                      onChange={(page) => update({ page: String(page) })}
+                      noun="users"
+                    />
+                  </div>
+                  <Select
+                    variant="secondary"
+                    className="w-36"
+                    value={query.limit}
+                    onChange={(limit) => update({ limit: String(limit) })}
+                  >
+                    <Label className="sr-only">Users per page</Label>
+                    <Select.Trigger>
+                      <Select.Value />
+                      <Select.Indicator />
+                    </Select.Trigger>
+                    <Select.Popover>
+                      <ListBox>
+                        {PAGE_SIZES.map((size) => (
+                          <ListBox.Item
+                            key={size}
+                            id={size}
+                            textValue={`${size} per page`}
+                          >
+                            {size} per page
+                            <ListBox.ItemIndicator />
+                          </ListBox.Item>
+                        ))}
+                      </ListBox>
+                    </Select.Popover>
+                  </Select>
+                </div>
+              )
+            }
+          />
+        </Dimmed>
       </Card>
     </>
   );
 }
 
-/** The table's columns; links carry [listSearch] to the user's page. */
-function columnsFor(listSearch: string): ColumnsType<UserSummary> {
+/** The table's columns; links carry the list's filters to a user's page. */
+function columnsFor(fromList: FromList): Column<UserSummary>[] {
   return [
     {
       title: 'User',
-      key: 'user',
-      render: (_, user) => (
-        <Space>
-          <Avatar src={user.photoUrl ?? undefined}>
-            {(user.name || user.email).charAt(0).toUpperCase()}
-          </Avatar>
-          <Space orientation="vertical" size={0}>
-            <Link
-              to={userPath(user.id)}
-              state={{ listSearch } satisfies FromList}
-            >
+      render: (user) => (
+        <div className="flex items-center gap-3">
+          <UserAvatar
+            size="sm"
+            name={user.name || user.email}
+            photoUrl={user.photoUrl}
+          />
+          <div className="min-w-0">
+            {/* The row is a link too; this one is what screen readers find. */}
+            <Link href={userPath(user.id)} routerOptions={{ state: fromList }}>
               {user.name || user.email}
             </Link>
             {user.name && (
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                {user.email}
-              </Typography.Text>
+              <div className="truncate text-xs text-muted">{user.email}</div>
             )}
-          </Space>
-        </Space>
+          </div>
+        </div>
       ),
     },
     {
       title: 'Status',
-      dataIndex: 'disabled',
-      render: (disabled: boolean) => <StatusTag disabled={disabled} />,
+      render: (user) => <StatusTag disabled={user.disabled} />,
     },
-    { title: 'Workouts', dataIndex: 'sessionCount', align: 'right' },
+    {
+      title: 'Workouts',
+      numeric: true,
+      render: (user) => formatExact(user.sessionCount),
+    },
     {
       title: 'Joined',
-      dataIndex: 'createdAt',
-      render: (createdAt: string) => formatDateTime(createdAt),
+      className: 'tabular-nums whitespace-nowrap',
+      render: (user) => formatDateTime(user.createdAt),
     },
     {
       title: 'Last sign-in',
-      dataIndex: 'lastSignInAt',
-      render: (at: string | null) => (at ? formatDateTime(at) : '—'),
+      className: 'tabular-nums whitespace-nowrap',
+      render: (user) =>
+        user.lastSignInAt ? formatDateTime(user.lastSignInAt) : '—',
     },
   ];
 }

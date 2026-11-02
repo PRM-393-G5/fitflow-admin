@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest';
+import { toast } from '@heroui/react';
 import { cleanup, configure } from '@testing-library/react';
 import { afterEach } from 'vitest';
 
@@ -9,6 +10,9 @@ configure({ asyncUtilTimeout: 5000 });
 afterEach(() => {
   cleanup();
   localStorage.clear();
+  // HeroUI keeps toasts in a module-level queue: one test's must not
+  // show up in the next.
+  toast.clear();
 });
 
 // jsdom lacks the browser APIs antd's responsive components use.
