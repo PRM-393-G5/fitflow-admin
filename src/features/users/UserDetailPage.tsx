@@ -270,7 +270,7 @@ function UserDetailView({
               },
               {
                 title: 'Finished',
-                className: 'tabular whitespace-nowrap',
+                className: 'tabular-nums whitespace-nowrap',
                 // The phone's local time: shown as is, not converted.
                 render: (session) =>
                   session.completedAt
@@ -279,7 +279,7 @@ function UserDetailView({
               },
               {
                 title: 'Duration',
-                className: 'tabular',
+                className: 'tabular-nums',
                 render: (session) => formatMinutes(session.minutes),
               },
               {

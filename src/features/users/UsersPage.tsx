@@ -189,12 +189,12 @@ function columnsFor(fromList: FromList): Column<UserSummary>[] {
     },
     {
       title: 'Joined',
-      className: 'tabular whitespace-nowrap',
+      className: 'tabular-nums whitespace-nowrap',
       render: (user) => formatDateTime(user.createdAt),
     },
     {
       title: 'Last sign-in',
-      className: 'tabular whitespace-nowrap',
+      className: 'tabular-nums whitespace-nowrap',
       render: (user) =>
         user.lastSignInAt ? formatDateTime(user.lastSignInAt) : '—',
     },
