@@ -43,8 +43,8 @@ export function DataTable<Row>({
   /** On the scroll container, e.g. a `max-h-*` that scrolls tall tables. */
   scrollClassName?: string;
   /**
-   * Makes each row a link: a click anywhere opens it, and a modified or
-   * middle click opens a new tab, like any link.
+   * Makes each row a link: a click anywhere opens it, and a Ctrl/⌘ click
+   * opens a new tab. (A middle click works on links inside the row.)
    */
   rowHref?: (row: Row) => string;
   rowRouterOptions?: (row: Row) => NavigateOptions;

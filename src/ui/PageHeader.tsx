@@ -18,7 +18,7 @@ export function PageHeader({
       <div className="flex min-w-0 items-center gap-3">
         {leading}
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          <h1 className="text-2xl font-semibold tracking-tight wrap-anywhere text-foreground">
             {title}
           </h1>
           {description && (

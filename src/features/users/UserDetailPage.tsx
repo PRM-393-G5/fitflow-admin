@@ -22,7 +22,7 @@ import {
   TextField,
   toast,
 } from '@heroui/react';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { ApiError } from '../../api/client';
 import { formatDateTime, formatExact } from '../../format';
@@ -115,20 +115,43 @@ function UserDetailView({
   const navigate = useNavigate();
   const setLocked = useSetUserLocked(user.id);
   const remove = useDeleteUser(user.id);
+  // What the lock dialog does is fixed when it opens, and it acts once:
+  // a second press while it closes can't flip the account back.
   const [confirmingLock, setConfirmingLock] = useState(false);
+  const [lockTo, setLockTo] = useState(!user.disabled);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const shownName = user.name || user.email;
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
-  const toggleLock = () => {
+  const applyLock = () => {
+    if (!confirmingLock || setLocked.isPending) return;
+    const disabled = lockTo;
     setConfirmingLock(false);
     // A promise, not mutate callbacks: the result is still reported if
     // the admin has left the page by the time it arrives.
-    setLocked.mutateAsync(!user.disabled).then(
-      () =>
-        toast.success(
-          user.disabled ? `Unlocked ${shownName}` : `Locked ${shownName}`,
-        ),
+    setLocked.mutateAsync(disabled).then(
+      () => toast.success(`${disabled ? 'Locked' : 'Unlocked'} ${shownName}`),
       (error: Error) => toast.danger(error.message),
+    );
+  };
+
+  const deleteUser = () => {
+    if (remove.isPending) return;
+    remove.mutateAsync().then(
+      () => {
+        toast.success(`Deleted ${shownName}`);
+        if (mounted.current) navigate(backTo, { replace: true });
+      },
+      (error: Error) => {
+        // On the page, the dialog shows the error; elsewhere, a toast.
+        if (!mounted.current) toast.danger(error.message);
+      },
     );
   };
 
@@ -148,8 +171,8 @@ function UserDetailView({
           </>
         }
         title={
-          <span className="flex flex-wrap items-center gap-3">
-            {shownName}
+          <span className="flex min-w-0 flex-wrap items-center gap-3">
+            <span className="min-w-0">{shownName}</span>
             <StatusTag disabled={user.disabled} size="md" />
           </span>
         }
@@ -159,7 +182,10 @@ function UserDetailView({
             <Button
               variant="secondary"
               isPending={setLocked.isPending}
-              onPress={() => setConfirmingLock(true)}
+              onPress={() => {
+                setLockTo(!user.disabled);
+                setConfirmingLock(true);
+              }}
             >
               {setLocked.isPending ? (
                 <Spinner color="current" size="sm" />
@@ -300,8 +326,8 @@ function UserDetailView({
       <LockDialog
         isOpen={confirmingLock}
         onOpenChange={setConfirmingLock}
-        locked={user.disabled}
-        onConfirm={toggleLock}
+        locked={!lockTo}
+        onConfirm={applyLock}
       />
       <DeleteUserDialog
         isOpen={confirmingDelete}
@@ -309,14 +335,7 @@ function UserDetailView({
         email={user.email}
         deleting={remove.isPending}
         error={remove.error?.message}
-        onConfirm={() =>
-          remove.mutate(undefined, {
-            onSuccess: () => {
-              toast.success(`Deleted ${shownName}`);
-              navigate(backTo, { replace: true });
-            },
-          })
-        }
+        onConfirm={deleteUser}
       />
     </>
   );
