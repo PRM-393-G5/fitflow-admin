@@ -34,6 +34,20 @@ const pages: RouteObject[] = [
           })),
       },
       {
+        path: 'users',
+        lazy: () =>
+          import('./features/users/UsersPage').then((module) => ({
+            Component: module.UsersPage,
+          })),
+      },
+      {
+        path: 'users/:id',
+        lazy: () =>
+          import('./features/users/UserDetailPage').then((module) => ({
+            Component: module.UserDetailPage,
+          })),
+      },
+      {
         // Pages still on antd, until they move to HeroUI.
         lazy: () =>
           import('./layout/LegacyAntd').then((module) => ({
@@ -55,20 +69,6 @@ const pages: RouteObject[] = [
             // `/edit` keeps a template whose id is `new` reachable.
             path: 'templates/:id/edit',
             lazy: templateEditor,
-          },
-          {
-            path: 'users',
-            lazy: () =>
-              import('./features/users/UsersPage').then((module) => ({
-                Component: module.UsersPage,
-              })),
-          },
-          {
-            path: 'users/:id',
-            lazy: () =>
-              import('./features/users/UserDetailPage').then((module) => ({
-                Component: module.UserDetailPage,
-              })),
           },
         ],
       },

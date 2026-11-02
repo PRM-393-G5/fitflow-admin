@@ -1,23 +1,27 @@
-import { SearchOutlined } from '@ant-design/icons';
 import {
-  Alert,
-  Avatar,
   Card,
-  Input,
-  Segmented,
-  Space,
-  Table,
-  Typography,
-} from 'antd';
-import type { ColumnsType } from 'antd/es/table';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
+  Label,
+  Link,
+  ListBox,
+  SearchField,
+  Select,
+  Spinner,
+} from '@heroui/react';
+import { useCallback, useEffect, useState } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router';
+import { formatCount } from '../../charts/tokens';
 import { formatDateTime } from '../../format';
+import { DataTable } from '../../ui/DataTable';
+import { EmptyRows, Notice } from '../../ui/feedback';
+import { PageHeader } from '../../ui/PageHeader';
+import { Pager } from '../../ui/Pager';
+import { Segmented } from '../../ui/Segmented';
 import { useUsers } from './api';
 import { userPath, type FromList } from './paths';
-import { StatusTag } from './StatusTag';
 import { DEFAULT_LIMIT, PAGE_SIZES, parseUserQuery } from './query';
-import type { UserStatus, UserSummary } from './types';
+import { StatusTag } from './StatusTag';
+import type { UserStatus } from './types';
+import { UserAvatar } from './UserAvatar';
 
 const SEARCH_DELAY_MS = 300;
 
@@ -43,7 +47,7 @@ export function UsersPage() {
     }
   }
   const listSearch = useLocation().search;
-  const columns = useMemo(() => columnsFor(listSearch), [listSearch]);
+  const fromList: FromList = { listSearch };
 
   /** Writes [changes] to the URL; any filter change goes back to page 1. */
   const update = useCallback(
@@ -86,125 +90,153 @@ export function UsersPage() {
     return () => clearTimeout(timer);
   }, [search, query.search, update]);
 
+  // A failed load for new filters must not show the old rows.
+  const items = users.isError ? [] : (users.data?.items ?? []);
+
   return (
     <>
-      <div className="page-header">
-        <div>
-          <Typography.Title level={2}>Users</Typography.Title>
-          <Typography.Text type="secondary">
-            Everyone who has signed in to the FitFlow app.
-          </Typography.Text>
-        </div>
-      </div>
-      {users.isError && (
-        <Alert
-          type="error"
-          showIcon
-          title={users.error.message}
-          style={{ marginBottom: 16 }}
-        />
-      )}
+      <PageHeader
+        title="Users"
+        description="Everyone who has signed in to the FitFlow app."
+      />
+      {users.isError && <Notice status="danger" title={users.error.message} />}
       <Card>
-        <Space wrap style={{ marginBottom: 16 }}>
-          <Input
-            allowClear
-            prefix={<SearchOutlined />}
-            placeholder="Search email or name"
+        <div className="flex flex-wrap items-center gap-3">
+          <SearchField
             aria-label="Search users"
             value={search}
+            onChange={setSearch}
             maxLength={100}
-            onChange={(event) => setSearch(event.target.value)}
-            style={{ width: 280 }}
-          />
+            className="w-full sm:w-72"
+          >
+            <SearchField.Group>
+              <SearchField.SearchIcon />
+              <SearchField.Input placeholder="Search email or name" />
+              <SearchField.ClearButton />
+            </SearchField.Group>
+          </SearchField>
           <Segmented<UserStatus>
+            ariaLabel="Status"
+            size="md"
             value={query.status}
             onChange={(status) =>
               update({ status: status === 'all' ? '' : status })
             }
             options={[
-              { label: 'All', value: 'all' },
-              { label: 'Active', value: 'active' },
-              { label: 'Locked', value: 'locked' },
+              { value: 'all', label: 'All' },
+              { value: 'active', label: 'Active' },
+              { value: 'locked', label: 'Locked' },
             ]}
           />
-        </Space>
-        <Table<UserSummary>
-          rowKey="id"
-          columns={columns}
-          // A failed load for new filters must not show the old rows.
-          dataSource={users.isError ? [] : users.data?.items}
-          loading={users.isFetching}
-          onRow={(user) => ({
-            onClick: (event) => {
-              // Links inside the row navigate on their own, and a
-              // modified click (new tab/window) belongs to the name link.
-              if ((event.target as HTMLElement).closest('a')) return;
-              if (event.ctrlKey || event.metaKey || event.shiftKey) return;
-              navigate(userPath(user.id), {
-                state: { listSearch } satisfies FromList,
-              });
+          {users.isFetching && <Spinner size="sm" aria-label="Loading users" />}
+        </div>
+        <DataTable
+          label="Users"
+          className={`transition-opacity ${users.isPlaceholderData ? 'opacity-55' : ''}`}
+          contentClassName="min-w-[760px]"
+          rows={items}
+          rowKey={(user) => user.id}
+          onRowAction={(id) =>
+            navigate(userPath(String(id)), { state: fromList })
+          }
+          empty={
+            users.isPending ? (
+              <div className="flex justify-center py-10">
+                <Spinner aria-label="Loading users" />
+              </div>
+            ) : (
+              <EmptyRows>No users match these filters</EmptyRows>
+            )
+          }
+          columns={[
+            {
+              title: 'User',
+              render: (user) => (
+                <div className="flex items-center gap-3">
+                  <UserAvatar
+                    size="sm"
+                    name={user.name || user.email}
+                    photoUrl={user.photoUrl}
+                  />
+                  <div className="min-w-0">
+                    {/* Its own link: a new tab, or a screen reader. */}
+                    <Link
+                      href={userPath(user.id)}
+                      routerOptions={{ state: fromList }}
+                    >
+                      {user.name || user.email}
+                    </Link>
+                    {user.name && (
+                      <div className="truncate text-xs text-muted">
+                        {user.email}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ),
             },
-            style: { cursor: 'pointer' },
-          })}
-          pagination={{
-            current: query.page,
-            pageSize: query.limit,
-            total: users.data?.total ?? 0,
-            showSizeChanger: true,
-            pageSizeOptions: PAGE_SIZES,
-            showTotal: (total) => `${total} users`,
-            onChange: (page, limit) =>
-              update({ page: String(page), limit: String(limit) }),
-          }}
-          scroll={{ x: 800 }}
+            {
+              title: 'Status',
+              render: (user) => <StatusTag disabled={user.disabled} />,
+            },
+            {
+              title: 'Workouts',
+              numeric: true,
+              render: (user) => formatCount(user.sessionCount),
+            },
+            {
+              title: 'Joined',
+              className: 'tabular whitespace-nowrap',
+              render: (user) => formatDateTime(user.createdAt),
+            },
+            {
+              title: 'Last sign-in',
+              className: 'tabular whitespace-nowrap',
+              render: (user) =>
+                user.lastSignInAt ? formatDateTime(user.lastSignInAt) : '—',
+            },
+          ]}
+          footer={
+            <div className="flex w-full flex-wrap items-center gap-4">
+              <div className="min-w-0 flex-1">
+                <Pager
+                  page={query.page}
+                  pageSize={query.limit}
+                  total={users.isError ? 0 : (users.data?.total ?? 0)}
+                  onChange={(page) => update({ page: String(page) })}
+                  noun="users"
+                />
+              </div>
+              <Select
+                aria-label="Users per page"
+                className="w-36"
+                value={query.limit}
+                onChange={(limit) => update({ limit: String(limit) })}
+              >
+                <Label className="sr-only">Users per page</Label>
+                <Select.Trigger>
+                  <Select.Value />
+                  <Select.Indicator />
+                </Select.Trigger>
+                <Select.Popover>
+                  <ListBox>
+                    {PAGE_SIZES.map((size) => (
+                      <ListBox.Item
+                        key={size}
+                        id={size}
+                        textValue={`${size} per page`}
+                      >
+                        {size} per page
+                        <ListBox.ItemIndicator />
+                      </ListBox.Item>
+                    ))}
+                  </ListBox>
+                </Select.Popover>
+              </Select>
+            </div>
+          }
         />
       </Card>
     </>
   );
-}
-
-/** The table's columns; links carry [listSearch] to the user's page. */
-function columnsFor(listSearch: string): ColumnsType<UserSummary> {
-  return [
-    {
-      title: 'User',
-      key: 'user',
-      render: (_, user) => (
-        <Space>
-          <Avatar src={user.photoUrl ?? undefined}>
-            {(user.name || user.email).charAt(0).toUpperCase()}
-          </Avatar>
-          <Space orientation="vertical" size={0}>
-            <Link
-              to={userPath(user.id)}
-              state={{ listSearch } satisfies FromList}
-            >
-              {user.name || user.email}
-            </Link>
-            {user.name && (
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                {user.email}
-              </Typography.Text>
-            )}
-          </Space>
-        </Space>
-      ),
-    },
-    {
-      title: 'Status',
-      dataIndex: 'disabled',
-      render: (disabled: boolean) => <StatusTag disabled={disabled} />,
-    },
-    { title: 'Workouts', dataIndex: 'sessionCount', align: 'right' },
-    {
-      title: 'Joined',
-      dataIndex: 'createdAt',
-      render: (createdAt: string) => formatDateTime(createdAt),
-    },
-    {
-      title: 'Last sign-in',
-      dataIndex: 'lastSignInAt',
-      render: (at: string | null) => (at ? formatDateTime(at) : '—'),
-    },
-  ];
 }
