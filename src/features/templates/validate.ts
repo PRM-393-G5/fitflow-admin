@@ -24,6 +24,14 @@ const isWhole = (value: number, min: number, max: number) =>
 const isBetween = (value: number, min: number, max: number) =>
   Number.isFinite(value) && value >= min && value <= max;
 
+/** [amount] moved into [mode]'s range, e.g. 300 s switched to reps → 200. */
+export function amountFor(mode: ExerciseFormValues['mode'], amount: number) {
+  const { min, max } = amountRange(mode);
+  return Number.isFinite(amount)
+    ? Math.min(Math.max(amount, min), max)
+    : amount;
+}
+
 /** The amount's range for the row's type, as the API checks it. */
 export const amountRange = (mode: ExerciseFormValues['mode']) =>
   mode === 'timed'
@@ -48,15 +56,23 @@ export function validateExercise(exercise: ExerciseFormValues): ExerciseErrors {
   return errors;
 }
 
-/** Every rule the API enforces, worded for the form. */
-export function validateTemplate(values: TemplateFormValues): TemplateErrors {
+/**
+ * Every rule the API enforces, worded for the form. The id is checked
+ * only for a new template: an edit never sends it.
+ */
+export function validateTemplate(
+  values: TemplateFormValues,
+  { isNew = true }: { isNew?: boolean } = {},
+): TemplateErrors {
   const errors: TemplateErrors = {
     rows: values.exercises.map(validateExercise),
   };
   const name = values.name.trim();
   if (!name) errors.name = 'Enter a name';
   else if (name.length > 80) errors.name = 'At most 80 characters';
-  if (!values.id) errors.id = 'Enter an id';
+  if (!isNew) {
+    // Stored ids are whatever the API accepted; not ours to re-judge.
+  } else if (!values.id) errors.id = 'Enter an id';
   else if (values.id.length > MAX_TEMPLATE_ID_LENGTH) {
     errors.id = `At most ${MAX_TEMPLATE_ID_LENGTH} characters`;
   } else if (!TEMPLATE_ID_PATTERN.test(values.id)) {

@@ -245,20 +245,120 @@ describe('templates', () => {
     );
   });
 
-  it('checks the amount against the new type when it switches', async () => {
+  it("moves the amount into the new type's range when it switches", async () => {
     const { api } = templatesApi([
       {
         ...template('a', 'Alpha'),
         exercises: [{ ...exercise, reps: 0, durationSeconds: 300 }],
       },
     ]);
-    renderApp('/templates/a/edit', api);
+    const { calls } = renderApp('/templates/a/edit', api);
     const user = userEvent.setup();
     expect(
       await screen.findByRole('textbox', { name: 'Seconds of exercise 1' }),
     ).toHaveValue('300');
     await user.click(screen.getByText('Reps'));
-    expect(await screen.findByText('1–200 reps')).toBeInTheDocument();
+    // 300 s becomes 200 reps (the most allowed), shown and saved as such.
+    expect(
+      screen.getByRole('textbox', { name: 'Reps of exercise 1' }),
+    ).toHaveValue('200');
+    expect(screen.queryByText('1–200 reps')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(calls.find((call) => call.method === 'PUT')?.body).toMatchObject({
+        exercises: [{ reps: 200, durationSeconds: 0 }],
+      }),
+    );
+  });
+
+  it('adds, moves and removes exercises', async () => {
+    const { api } = templatesApi([template('a', 'Alpha')]);
+    const { calls } = renderApp('/templates/a/edit', api);
+    const user = userEvent.setup();
+    await user.click(
+      await screen.findByRole('button', { name: 'Add exercise' }),
+    );
+    expect(screen.getByText('Exercises (2)')).toBeVisible();
+    await user.type(
+      screen.getByRole('textbox', { name: 'Name of exercise 2' }),
+      'Lunge',
+    );
+    await user.type(
+      screen.getByRole('combobox', { name: 'Muscle group of exercise 2' }),
+      'Legs',
+    );
+    await user.tab();
+    await user.click(
+      screen.getByRole('button', { name: 'Move exercise 2 up' }),
+    );
+    expect(
+      screen.getByRole('textbox', { name: 'Name of exercise 1' }),
+    ).toHaveValue('Lunge');
+    // Removing the old one leaves the new one, now the only exercise.
+    await user.click(screen.getByRole('button', { name: 'Remove exercise 2' }));
+    expect(screen.getByText('Exercises (1)')).toBeVisible();
+    // The last exercise cannot be removed.
+    expect(
+      screen.getByRole('button', { name: 'Remove exercise 1' }),
+    ).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(calls.find((call) => call.method === 'PUT')?.body).toMatchObject({
+        exercises: [{ id: 'lunge', name: 'Lunge', muscleGroup: 'Legs' }],
+      }),
+    );
+  });
+
+  it('takes the admin to the first problem on a refused save', async () => {
+    const { calls } = renderApp('/templates/new', templatesApi([]).api);
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText('Name'), 'Leg Day');
+    await user.click(screen.getByRole('button', { name: 'Create' }));
+    const exerciseName = screen.getByRole('textbox', {
+      name: 'Name of exercise 1',
+    });
+    await waitFor(() => expect(exerciseName).toHaveFocus());
+    expect(calls.some((call) => call.method === 'POST')).toBe(false);
+  });
+
+  it('saves a template whose stored id the create rules would refuse', async () => {
+    const { api } = templatesApi([template('Legacy_ID', 'Legacy')]);
+    const { calls } = renderApp('/templates/Legacy_ID/edit', api);
+    await userEvent.click(await screen.findByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(calls.find((call) => call.method === 'PUT')?.path).toBe(
+        'admin/templates/Legacy_ID',
+      ),
+    );
+  });
+
+  it('reports a delete the API refused', async () => {
+    const { api } = templatesApi([template('a', 'Alpha')]);
+    api['DELETE admin/templates/a'] = () => ({
+      status: 500,
+      body: { message: 'Database unreachable' },
+    });
+    renderApp('/templates', api);
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Delete Alpha' }),
+    );
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Delete' }),
+    );
+    expect(await screen.findByText('Database unreachable')).toBeVisible();
+  });
+
+  it('says the library failed to load, not that it is empty', async () => {
+    renderApp('/templates', {
+      'GET admin/templates': () => ({
+        status: 500,
+        body: { message: 'Database unreachable' },
+      }),
+    });
+    expect(
+      await screen.findByText('The library could not be loaded.'),
+    ).toBeVisible();
+    expect(screen.queryByText('No templates yet')).toBeNull();
   });
 
   it('says when a template does not exist', async () => {

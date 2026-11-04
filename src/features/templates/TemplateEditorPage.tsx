@@ -8,7 +8,6 @@ import {
   TrashBin,
 } from '@gravity-ui/icons';
 import {
-  Alert,
   Button,
   Card,
   ComboBox,
@@ -52,6 +51,7 @@ import {
 } from './templateForm';
 import { CATEGORIES, LEVELS, MUSCLE_GROUPS } from './types';
 import {
+  amountFor,
   amountRange,
   hasErrors,
   MAX_DESCRIPTION,
@@ -125,6 +125,10 @@ function EditorSkeleton() {
   );
 }
 
+// Module-level: React Aria rebuilds a field's parser when these change.
+const WHOLE = { maximumFractionDigits: 0 };
+const FRACTION = { maximumFractionDigits: 2 };
+
 /** A NaN from an emptied number field counts as nothing. */
 const orZero = (value: number) => (Number.isFinite(value) ? value : 0);
 
@@ -151,7 +155,7 @@ function TemplateForm({
   const [focusError, setFocusError] = useState(0);
   const formRef = useRef<HTMLFormElement>(null);
 
-  const errors = validateTemplate(values);
+  const errors = validateTemplate(values, { isNew });
   const shown = (field: string, error: string | undefined) =>
     submitted || touched.has(field) ? error : undefined;
   const touch = (...fields: string[]) =>
@@ -160,11 +164,17 @@ function TemplateForm({
   // After a refused submit, take the admin to the first problem.
   useEffect(() => {
     if (focusError === 0) return;
-    const invalid = formRef.current?.querySelector<HTMLElement>(
-      '[aria-invalid="true"]',
-    );
-    invalid?.scrollIntoView({ block: 'center' });
-    invalid?.focus();
+    const form = formRef.current;
+    const invalid = form?.querySelector<HTMLElement>('[aria-invalid="true"]');
+    if (invalid) {
+      invalid.scrollIntoView({ block: 'center' });
+      invalid.focus();
+    } else {
+      // A problem with the list itself: show its banner.
+      form
+        ?.querySelector('[role="alert"]')
+        ?.scrollIntoView({ block: 'center' });
+    }
   }, [focusError]);
 
   const minutes = estimateMinutes(
@@ -197,13 +207,17 @@ function TemplateForm({
   };
   const updateRow = (key: number, change: Partial<ExerciseFormValues>) => {
     touch(...Object.keys(change).map((field) => `${key}.${field}`));
-    // A new type re-checks the amount against its own range.
-    if (change.mode) touch(`${key}.amount`);
     setValues((current) => ({
       ...current,
-      exercises: current.exercises.map((row) =>
-        row.key === key ? { ...row, ...change } : row,
-      ),
+      exercises: current.exercises.map((row) => {
+        if (row.key !== key) return row;
+        const next = { ...row, ...change };
+        // A new type keeps the amount when it fits, else moves it into
+        // range (300 s switched to reps is 200 reps), never out of range.
+        return change.mode
+          ? { ...next, amount: amountFor(change.mode, next.amount) }
+          : next;
+      }),
     }));
   };
   const moveRow = (index: number, by: -1 | 1) =>
@@ -328,7 +342,7 @@ function TemplateForm({
                   <div className="text-xs">
                     Estimated duration (as the app computes it)
                   </div>
-                  <div className="text-xl font-semibold tabular">
+                  <div className="text-xl font-semibold tabular-nums">
                     {minutes} min
                   </div>
                 </div>
@@ -340,12 +354,17 @@ function TemplateForm({
                   setValues((current) => ({ ...current, description }))
                 }
                 maxLength={MAX_DESCRIPTION}
+                isInvalid={Boolean(errors.description)}
               >
                 <Label>Description</Label>
                 <TextArea variant="secondary" rows={2} />
-                <Description className="tabular">
-                  {values.description.length} / {MAX_DESCRIPTION}
-                </Description>
+                {errors.description ? (
+                  <FieldError>{errors.description}</FieldError>
+                ) : (
+                  <Description className="tabular-nums">
+                    {values.description.length} / {MAX_DESCRIPTION}
+                  </Description>
+                )}
               </TextField>
             </div>
           </SectionCard>
@@ -378,12 +397,7 @@ function TemplateForm({
                 />
               ))}
               {submitted && errors.exercises && (
-                <Alert status="danger">
-                  <Alert.Indicator />
-                  <Alert.Content>
-                    <Alert.Title>{errors.exercises}</Alert.Title>
-                  </Alert.Content>
-                </Alert>
+                <Notice status="danger" title={errors.exercises} />
               )}
             </div>
           </SectionCard>
@@ -466,7 +480,7 @@ function ExerciseRow({
     <div className="rounded-2xl border border-separator p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <span className="flex items-center gap-2 text-sm font-medium">
-          <span className="flex size-6 items-center justify-center rounded-full bg-accent/10 text-xs text-accent tabular">
+          <span className="flex size-6 items-center justify-center rounded-full bg-accent/10 text-xs text-accent tabular-nums">
             {number}
           </span>
           {row.name.trim() || 'New exercise'}
@@ -613,7 +627,7 @@ function RowNumber({
   value: number;
   min: number;
   max: number;
-  /** Allows decimals (a load); counts are whole numbers. */
+  /** Allows decimals (a load), stepping by 0.5; counts are whole. */
   fraction?: boolean;
   error: string | undefined;
   onChange: (value: number) => void;
@@ -626,7 +640,8 @@ function RowNumber({
       onChange={onChange}
       minValue={min}
       maxValue={max}
-      formatOptions={{ maximumFractionDigits: fraction ? 2 : 0 }}
+      formatOptions={fraction ? FRACTION : WHOLE}
+      step={fraction ? 0.5 : 1}
       isInvalid={Boolean(error)}
     >
       <RowLabel row={row}>{label}</RowLabel>

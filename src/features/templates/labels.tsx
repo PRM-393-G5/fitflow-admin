@@ -14,26 +14,26 @@ const LEVEL_COLORS: Record<string, ChipColor> = {
   Advanced: 'danger',
 };
 
-export function CategoryChip({ category }: { category: string }) {
+function LabelChip({
+  label,
+  colors,
+  variant,
+}: {
+  label: string;
+  colors: Record<string, ChipColor>;
+  variant: 'soft' | 'secondary';
+}) {
   return (
-    <Chip
-      size="sm"
-      variant="soft"
-      color={CATEGORY_COLORS[category] ?? 'default'}
-    >
-      <Chip.Label>{category}</Chip.Label>
+    <Chip size="sm" variant={variant} color={colors[label] ?? 'default'}>
+      <Chip.Label>{label}</Chip.Label>
     </Chip>
   );
 }
 
-export function LevelChip({ level }: { level: string }) {
-  return (
-    <Chip
-      size="sm"
-      variant="secondary"
-      color={LEVEL_COLORS[level] ?? 'default'}
-    >
-      <Chip.Label>{level}</Chip.Label>
-    </Chip>
-  );
-}
+export const CategoryChip = ({ category }: { category: string }) => (
+  <LabelChip label={category} colors={CATEGORY_COLORS} variant="soft" />
+);
+
+export const LevelChip = ({ level }: { level: string }) => (
+  <LabelChip label={level} colors={LEVEL_COLORS} variant="secondary" />
+);

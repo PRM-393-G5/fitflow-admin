@@ -6,7 +6,8 @@ import { EmptyRows } from './feedback';
 export interface Column<Row> {
   /** The header. */
   title: string;
-  render: (row: Row) => ReactNode;
+  /** [index] is the row's position in [rows]. */
+  render: (row: Row, index: number) => ReactNode;
   /** Right-aligned, with tabular-nums figures. */
   numeric?: boolean;
   /** Extra classes for the column's cells. */
@@ -76,7 +77,7 @@ export function DataTable<Row>({
               typeof empty === 'string' ? <EmptyRows>{empty}</EmptyRows> : empty
             }
           >
-            {rows.map((row) => (
+            {rows.map((row, rowIndex) => (
               <Table.Row
                 key={rowKey(row)}
                 id={rowKey(row)}
@@ -94,7 +95,7 @@ export function DataTable<Row>({
                       .filter(Boolean)
                       .join(' ')}
                   >
-                    {column.render(row)}
+                    {column.render(row, rowIndex)}
                   </Table.Cell>
                 ))}
               </Table.Row>
