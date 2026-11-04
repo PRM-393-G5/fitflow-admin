@@ -263,10 +263,33 @@ describe('templates', () => {
       screen.getByRole('textbox', { name: 'Reps of exercise 1' }),
     ).toHaveValue('200');
     expect(screen.queryByText('1–200 reps')).toBeNull();
+    // A slip of the toggle is undone by switching back: 300 s again.
+    await user.click(screen.getByText('Timed'));
+    expect(
+      screen.getByRole('textbox', { name: 'Seconds of exercise 1' }),
+    ).toHaveValue('300');
+    await user.click(screen.getByText('Reps'));
     await user.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() =>
       expect(calls.find((call) => call.method === 'PUT')?.body).toMatchObject({
         exercises: [{ reps: 200, durationSeconds: 0 }],
+      }),
+    );
+  });
+
+  it('saves a fractional load as typed', async () => {
+    const { api } = templatesApi([template('a', 'Alpha')]);
+    const { calls } = renderApp('/templates/a/edit', api);
+    const user = userEvent.setup();
+    const load = await screen.findByRole('textbox', {
+      name: 'Load (kg) of exercise 1',
+    });
+    await user.clear(load);
+    await user.type(load, '1.25');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(calls.find((call) => call.method === 'PUT')?.body).toMatchObject({
+        exercises: [{ weightKg: 1.25 }],
       }),
     );
   });
@@ -330,6 +353,22 @@ describe('templates', () => {
         'admin/templates/Legacy_ID',
       ),
     );
+  });
+
+  it('deletes once, however fast the confirm is pressed', async () => {
+    const { api } = templatesApi([
+      template('a', 'Alpha'),
+      template('b', 'Beta'),
+    ]);
+    const { calls } = renderApp('/templates', api);
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Delete Alpha' }),
+    );
+    await userEvent.dblClick(
+      await screen.findByRole('button', { name: 'Delete' }),
+    );
+    await waitFor(() => expect(rowNames()).toEqual(['Betab']));
+    expect(calls.filter((call) => call.method === 'DELETE')).toHaveLength(1);
   });
 
   it('reports a delete the API refused', async () => {

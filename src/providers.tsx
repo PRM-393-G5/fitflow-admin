@@ -1,4 +1,4 @@
-import { Toast } from '@heroui/react';
+import { I18nProvider, Toast } from '@heroui/react';
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { AuthProvider } from './auth/AuthProvider';
@@ -15,11 +15,15 @@ export function Providers({
   fetchImpl?: typeof fetch;
 }) {
   return (
-    <ThemeProvider>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider fetchImpl={fetchImpl}>{children}</AuthProvider>
-      </QueryClientProvider>
-      <Toast.Provider placement="bottom end" />
-    </ThemeProvider>
+    // The admin is in English, and numbers are typed with a "." decimal
+    // point whatever the browser's language (vi-VN would read "2.5" as 25).
+    <I18nProvider locale="en-US">
+      <ThemeProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider fetchImpl={fetchImpl}>{children}</AuthProvider>
+        </QueryClientProvider>
+        <Toast.Provider placement="bottom end" />
+      </ThemeProvider>
+    </I18nProvider>
   );
 }
