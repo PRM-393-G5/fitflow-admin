@@ -5,11 +5,6 @@ import { defineConfig } from 'vitest/config';
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  build: {
-    // The UI kit's shared core is large; pages are split into their own
-    // chunks by the routes' lazy imports.
-    chunkSizeWarningLimit: 900,
-  },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
