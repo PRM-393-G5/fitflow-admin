@@ -48,29 +48,20 @@ const pages: RouteObject[] = [
           })),
       },
       {
-        // Pages still on antd, until they move to HeroUI.
+        path: 'templates',
         lazy: () =>
-          import('./layout/LegacyAntd').then((module) => ({
-            Component: module.LegacyAntd,
+          import('./features/templates/TemplatesPage').then((module) => ({
+            Component: module.TemplatesPage,
           })),
-        children: [
-          {
-            path: 'templates',
-            lazy: () =>
-              import('./features/templates/TemplatesPage').then((module) => ({
-                Component: module.TemplatesPage,
-              })),
-          },
-          {
-            path: 'templates/new',
-            lazy: templateEditor,
-          },
-          {
-            // `/edit` keeps a template whose id is `new` reachable.
-            path: 'templates/:id/edit',
-            lazy: templateEditor,
-          },
-        ],
+      },
+      {
+        path: 'templates/new',
+        lazy: templateEditor,
+      },
+      {
+        // `/edit` keeps a template whose id is `new` reachable.
+        path: 'templates/:id/edit',
+        lazy: templateEditor,
       },
     ],
   },

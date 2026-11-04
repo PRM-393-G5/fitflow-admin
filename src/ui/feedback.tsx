@@ -1,4 +1,4 @@
-import { Alert, Skeleton, Spinner } from '@heroui/react';
+import { Alert, Card, Link, Skeleton, Spinner } from '@heroui/react';
 import type { ReactNode } from 'react';
 
 /** A banner above the page's content: what went wrong or needs a look. */
@@ -79,6 +79,32 @@ export function PageLoading() {
     <div className="flex min-h-screen items-center justify-center bg-background">
       <Spinner size="lg" aria-label="Loading" />
     </div>
+  );
+}
+
+/** A page whose subject is gone (or failed to load), with a way back. */
+export function Gone({
+  icon,
+  title,
+  detail,
+  backHref,
+  backLabel,
+}: {
+  icon: ReactNode;
+  title: string;
+  detail?: string;
+  backHref: string;
+  backLabel: string;
+}) {
+  return (
+    <Card className="mx-auto mt-16 max-w-md items-center py-10 text-center">
+      <span className="flex size-12 items-center justify-center rounded-2xl bg-default text-muted [&>svg]:size-6">
+        {icon}
+      </span>
+      <h1 className="text-lg font-semibold">{title}</h1>
+      {detail && <p className="text-sm text-muted">{detail}</p>}
+      <Link href={backHref}>{backLabel}</Link>
+    </Card>
   );
 }
 

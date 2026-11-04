@@ -13,7 +13,6 @@ import {
   Alert,
   AlertDialog,
   Button,
-  Card,
   Chip,
   Input,
   Link,
@@ -27,7 +26,7 @@ import { useLocation, useNavigate, useParams } from 'react-router';
 import { ApiError } from '../../api/client';
 import { formatDateTime, formatExact } from '../../format';
 import { DataTable } from '../../ui/DataTable';
-import { EmptyRows, Notice } from '../../ui/feedback';
+import { EmptyRows, Gone, Notice } from '../../ui/feedback';
 import { PageHeader } from '../../ui/PageHeader';
 import { SectionCard } from '../../ui/SectionCard';
 import { StatTile } from '../../ui/StatTile';
@@ -54,20 +53,13 @@ export function UserDetailPage() {
   // Gone (e.g. deleted since it was cached): never show the stale copy.
   if (user.isError && (notFound || !user.data)) {
     return (
-      <Card className="mx-auto mt-16 max-w-md items-center py-10 text-center">
-        <span className="flex size-12 items-center justify-center rounded-2xl bg-default text-muted">
-          <PersonXmark className="size-6" />
-        </span>
-        <h1 className="text-lg font-semibold">
-          {notFound ? 'User not found' : user.error.message}
-        </h1>
-        {notFound && (
-          <p className="text-sm text-muted">
-            The account may have been deleted.
-          </p>
-        )}
-        <Link href={backTo}>Back to users</Link>
-      </Card>
+      <Gone
+        icon={<PersonXmark />}
+        title={notFound ? 'User not found' : user.error.message}
+        detail={notFound ? 'The account may have been deleted.' : undefined}
+        backHref={backTo}
+        backLabel="Back to users"
+      />
     );
   }
   return (
